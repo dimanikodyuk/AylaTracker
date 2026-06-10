@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Ayla Tracker 🐾</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f5f7;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .header-date {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 14px 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .stat-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            background: white;
+            border: none;
+            border-radius: 20px;
+            padding: 16px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .action-btn:active {
+            transform: scale(0.96);
+            background: #f0f0f0;
+        }
+
+        .action-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .action-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .timeline-section {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-nav {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .date-nav button {
+            background: #f0f0f0;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .date-nav button:active {
+            background: #e0e0e0;
+        }
+
+        .timeline-canvas {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-legend {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-dot-sleep { background: #9b59b6; }
+        .legend-dot-walk { background: #3498db; }
+        .legend-dot-feed { background: #f39c12; }
+        .legend-dot-toilet { background: #2ecc71; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab {
+            background: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 30px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.8;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .events-feed {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .event-card {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.2s;
+        }
+
+        .event-card:active {
+            transform: scale(0.99);
+        }
+
+        .event-time-large {
+            min-width: 65px;
+            text-align: center;
+        }
+
+        .event-hour {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .event-minute {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .event-icon-large {
+            font-size: 32px;
+        }
+
+        .event-details {
+            flex: 1;
+        }
+
+        .event-title-large {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .event-subtitle {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .event-duration {
+            font-size: 11px;
+            color: #3498db;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        .delete-event-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #ccc;
+            padding: 8px;
+            border-radius: 30px;
+        }
+
+        .delete-event-btn:active {
+            color: #f44336;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 32px;
+            padding: 24px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .modal-content h3 {
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .modal-content input,
+        .modal-content select,
+        .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            font-size: 14px;
+        }
+
+        .settings-input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            font-size: 14px;
+        }
+
+        .settings-label {
+            font-size: 13px;
+            color: #666;
+            display: block;
+            margin-bottom: 5px;
+            margin-top: 10px;
+        }
+
+        .settings-label:first-of-type {
+            margin-top: 0;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            z-index: 1000;
+            display: none;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        canvas {
+            max-height: 250px;
+            width: 100%;
+        }
+
+        .insight-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .insight-card .card-title {
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        @media (min-width: 768px) {
+            body {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            .stats-grid {
+                gap: 16px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+
+            .quick-actions {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐾 <span id="petName">Айла</span></h1>
+        <div class="header-date" id="currentDate"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">🍖</div>
+            <div class="stat-value" id="statFeed">0</div>
+            <div class="stat-label">годів</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🚶</div>
+            <div class="stat-value" id="statWalk">0</div>
+            <div class="stat-label">прогулянка</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">😴</div>
+            <div class="stat-value" id="statSleep">0</div>
+            <div class="stat-label">сон</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🚽</div>
+            <div class="stat-value" id="statToilet">0</div>
+            <div class="stat-label">туалет</div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <button class="action-btn" onclick="quickAdd('feed')">
+            <div class="action-icon">🍖</div>
+            <div class="action-text">Їжа</div>
+        </button>
+        <button class="action-btn" onclick="quickAdd('toilet_pee')">
+            <div class="action-icon">💧</div>
+            <div class="action-text">Піся</div>
+        </button>
+        <button class="action-btn" onclick="quickAdd('toilet_poop')">
+            <div class="action-icon">💩</div>
+            <div class="action-text">Кака</div>
+        </button>
+        <button class="action-btn" id="walkBtn" onclick="toggleWalk()">
+            <div class="action-icon" id="walkIcon">🚶</div>
+            <div class="action-text" id="walkText">Прогулянка</div>
+        </button>
+        <button class="action-btn" id="sleepBtn" onclick="toggleSleep()">
+            <div class="action-icon" id="sleepIcon">😴</div>
+            <div class="action-text" id="sleepText">Сон</div>
+        </button>
+        <button class="action-btn" onclick="showWeightModal()">
+            <div class="action-icon">⚖️</div>
+            <div class="action-text">Вага</div>
+        </button>
+    </div>
+
+    <!-- Розклад дня -->
+    <div class="timeline-section">
+        <div class="section-header">
+            <div class="section-title">
+                <span>📅</span> Розклад дня
+            </div>
+            <div class="date-nav">
+                <button onclick="changeDay(-1)">◀ Вчора</button>
+                <button onclick="changeDay(0)" id="todayBtn">Сьогодні</button>
+                <button onclick="changeDay(1)">Завтра ▶</button>
+            </div>
+        </div>
+        <div class="timeline-canvas">
+            <canvas id="timelineChart"></canvas>
+        </div>
+        <div class="timeline-legend">
+            <div class="legend-item"><div class="legend-dot legend-dot-sleep"></div><span>Сон</span></div>
+            <div class="legend-item"><div class="legend-dot legend-dot-walk"></div><span>Прогулянка</span></div>
+            <div class="legend-item"><div class="legend-dot legend-dot-feed"></div><span>Годування</span></div>
+            <div class="legend-item"><div class="legend-dot legend-dot-toilet"></div><span>Туалет</span></div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="activity" onclick="switchTab('activity')">📊 Активність</button>
+        <button class="tab" data-tab="feed" onclick="switchTab('feed')">📋 Стрічка</button>
+        <button class="tab" data-tab="weight" onclick="switchTab('weight')">⚖️ Вага</button>
+        <button class="tab" data-tab="training" onclick="switchTab('training')">🏋️ Тренування</button>
+        <button class="tab" data-tab="mental" onclick="switchTab('mental')">🧠 Розвиток</button>
+        <button class="tab" data-tab="health" onclick="switchTab('health')">💊 Здоров'я</button>
+        <button class="tab" data-tab="report" onclick="switchTab('report')">📈 Звіт</button>
+        <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Налаштування</button>
+    </div>
+
+    <div id="tab-activity" class="tab-content active">
+        <div class="card">
+            <div class="card-title">📊 Тижнева статистика</div>
+            <canvas id="weeklyChart"></canvas>
+        </div>
+    </div>
+
+    <div id="tab-feed" class="tab-content">
+        <div class="card">
+            <div class="card-title">📋 Стрічка подій</div>
+            <div class="events-feed" id="eventsFeed"></div>
+        </div>
+    </div>
+
+    <div id="tab-weight" class="tab-content">
+        <div class="card">
+            <div class="card-title">⚖️ Динаміка ваги</div>
+            <canvas id="weightChart"></canvas>
+            <div id="foodInfo" style="margin-top: 16px; padding: 12px; background: #f5f5f7; border-radius: 16px; text-align: center;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">📋 Історія ваги</div>
+            <div class="events-feed" id="weightList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showWeightModal()">➕ Додати вагу</button>
+        </div>
+    </div>
+
+    <div id="tab-training" class="tab-content">
+        <div class="card">
+            <div class="card-title">🏋️ Успішність команд</div>
+            <canvas id="trainingChart"></canvas>
+        </div>
+        <div class="card">
+            <div class="card-title">📋 Історія тренувань</div>
+            <div class="events-feed" id="trainingList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showTrainingModal()">➕ Додати тренування</button>
+        </div>
+    </div>
+
+    <div id="tab-mental" class="tab-content">
+        <div class="card">
+            <div class="card-title">🧠 Ментальна активність</div>
+            <canvas id="mentalChart"></canvas>
+            <div id="mentalAdvice" style="margin-top: 12px; padding: 12px; background: #f5f5f7; border-radius: 16px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">🔍 Маркери туалету</div>
+            <canvas id="pottyChart"></canvas>
+        </div>
+        <button class="btn" onclick="showMentalModal()">➕ Додати ментальну активність</button>
+    </div>
+
+    <div id="tab-health" class="tab-content">
+        <div class="card">
+            <div class="card-title">💊 Нагадування</div>
+            <div class="events-feed" id="remindersList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showReminderModal()">➕ Додати нагадування</button>
+        </div>
+        <div class="card">
+            <div class="card-title">🌡️ Симптоми</div>
+            <div class="events-feed" id="symptomsList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showSymptomModal()">➕ Додати симптоми</button>
+        </div>
+        <div class="card">
+            <div class="card-title">⚠️ Алергії</div>
+            <div class="events-feed" id="allergiesList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showAllergyModal()">➕ Додати алергію</button>
+        </div>
+    </div>
+
+    <div id="tab-report" class="tab-content">
+        <div class="card">
+            <div class="card-title">📊 Повний звіт</div>
+            <div id="reportContent"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="sendReport()">📱 Надіслати в Telegram</button>
+        </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+        <div class="card">
+            <div class="card-title">🐾 Основні налаштування</div>
+
+            <label class="settings-label">📝 Ім'я улюбленця</label>
+            <input type="text" id="settingPetName" class="settings-input" placeholder="Айла">
+
+            <label class="settings-label">🎂 Дата народження</label>
+            <input type="date" id="settingBirthDate" class="settings-input">
+
+            <label class="settings-label">🍖 Калорійність корму (ккал/кг)</label>
+            <input type="number" id="settingFoodDensity" class="settings-input" step="100" placeholder="3800">
+
+            <label class="settings-label">🎯 Цільова вага (кг)</label>
+            <input type="number" id="settingTargetWeight" class="settings-input" step="0.5" placeholder="8.0">
+        </div>
+
+        <div class="card">
+            <div class="card-title">📊 Плани на день</div>
+
+            <label class="settings-label">🍖 Кількість годувань на день</label>
+            <input type="number" id="settingPlannedMeals" class="settings-input" step="1" placeholder="4">
+            <small style="font-size: 11px; color: #888; display: block; margin-top: -5px;">Скільки разів на день має їсти Айла</small>
+
+            <label class="settings-label">😴 Скільки має спати (годин на день)</label>
+            <input type="number" id="settingPlannedSleep" class="settings-input" step="0.5" placeholder="14">
+            <small style="font-size: 11px; color: #888; display: block; margin-top: -5px;">Рекомендовано для цуценят: 14-16 годин</small>
+
+            <label class="settings-label">⏰ Нагадування про туалет (хв після їжі)</label>
+            <input type="number" id="settingPottyReminder" class="settings-input" step="5" placeholder="25">
+        </div>
+
+        <div class="card">
+            <div class="card-title">📱 Telegram</div>
+
+            <label class="settings-label">🤖 Bot Token</label>
+            <input type="text" id="settingTelegramToken" class="settings-input" placeholder="Вставте токен бота">
+
+            <label class="settings-label">🆔 Chat ID</label>
+            <input type="text" id="settingTelegramChatId" class="settings-input" placeholder="Вставте Chat ID">
+
+            <button class="btn" style="margin-bottom: 12px;" onclick="testTelegram()">📱 Тестувати Telegram</button>
+            <button class="btn btn-secondary" onclick="saveAllSettings()">💾 Зберегти всі налаштування</button>
+        </div>
+    </div>
+
+    <div class="card insight-card">
+        <div class="card-title">🧠 Порада дня</div>
+        <div id="insightText"></div>
+    </div>
+
+    <div id="toast" class="toast">✅ Готово!</div>
+
+    <!-- Модальні вікна -->
+    <div id="weightModal" class="modal">
+        <div class="modal-content">
+            <h3>⚖️ Додати вагу</h3>
+            <input type="number" id="weightInput" step="0.1" placeholder="Вага в кг">
+            <button class="btn" onclick="saveWeight()">💾 Зберегти</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('weightModal')">Скасувати</button>
+        </div>
+    </div>
+
+    <div id="trainingModal" class="modal">
+        <div class="modal-content">
+            <h3>🏋️ Тренування</h3>
+            <select id="commandInput">
+                <option>Сідати</option><option>Лежати</option><option>Поруч</option><option>Дай лапу</option>
+            </select>
+            <input type="number" id="durationInput" placeholder="Тривалість (хв)" value="10">
+            <select id="successInput">
+                <option value="5">✅ Відмінно (5)</option>
+                <option value="3">👍 Задовільно (3)</option>
+                <option value="1">❌ Не вдалося (1)</option>
+            </select>
+            <button class="btn" onclick="saveTraining()">💾 Зберегти</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('trainingModal')">Скасувати</button>
+        </div>
+    </div>
+
+    <div id="mentalModal" class="modal">
+        <div class="modal-content">
+            <h3>🧠 Ментальна активність</h3>
+            <select id="mentalTypeInput">
+                <option value="puzzle">🧩 Головоломка</option>
+                <option value="scent">🔍 Пошук ласощів</option>
+                <option value="shaping">🎓 Вивчення трюків</option>
+                <option value="sniffing">👃 Нюхальний килимок</option>
+            </select>
+            <input type="number" id="mentalDurationInput" placeholder="Тривалість (хв)" value="15">
+            <button class="btn" onclick="saveMental()">💾 Зберегти</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('mentalModal')">Скасувати</button>
+        </div>
+    </div>
+
+    <div id="symptomModal" class="modal">
+        <div class="modal-content">
+            <h3>🌡️ Симптоми</h3>
+            <input type="number" id="tempInput" step="0.1" placeholder="Температура">
+            <select id="appetiteInput">
+                <option value="5">🍖 Відмінний</option>
+                <option value="3">😐 Задовільний</option>
+                <option value="1">😖 Поганий</option>
+            </select>
+            <select id="moodInput">
+                <option>грайлива</option><option>спокійна</option><option>пригнічена</option>
+            </select>
+            <textarea id="symptomNote" rows="2" placeholder="Опис"></textarea>
+            <button class="btn" onclick="saveSymptom()">💾 Зберегти</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('symptomModal')">Скасувати</button>
+        </div>
+    </div>
+
+    <div id="allergyModal" class="modal">
+        <div class="modal-content">
+            <h3>⚠️ Алергія</h3>
+            <input type="text" id="allergyProduct" placeholder="Продукт">
+            <input type="text" id="allergyReaction" placeholder="Реакція">
+            <select id="allergySeverity">
+                <option value="5">🔴 Дуже сильна</option>
+                <option value="3">🟡 Середня</option>
+                <option value="1">🟢 Слабка</option>
+            </select>
+            <button class="btn" onclick="saveAllergy()">💾 Зберегти</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('allergyModal')">Скасувати</button>
+        </div>
+    </div>
+
+    <div id="reminderModal" class="modal">
+        <div class="modal-content">
+            <h3>💊 Нагадування</h3>
+            <input type="text" id="reminderTitle" placeholder="Назва">
+            <input type="number" id="reminderInterval" placeholder="Інтервал (днів)">
+            <textarea id="reminderDesc" rows="2" placeholder="Опис"></textarea>
+            <button class="btn" onclick="saveReminder()">💾 Зберегти</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('reminderModal')">Скасувати</button>
+        </div>
+    </div>
+
+    <script>
+        let timelineChart, weeklyChart, weightChart, trainingChart, mentalChart, pottyChart;
+        let walkActive = false, sleepActive = false;
+        let currentDayOffset = 0;
+
+        const eventIcons = { 'feed': '🍖', 'walk': '🚶', 'sleep': '😴', 'toilet': '🚽', 'behavior': '⚠️' };
+        const eventNames = { 'feed': 'Годування', 'walk': 'Прогулянка', 'sleep': 'Сон', 'toilet': 'Туалет', 'behavior': 'Поведінка' };
+        const toiletTypes = { 'піся': '💧 Піся', 'кака': '💩 Кака' };
+
+        function formatDuration(seconds) {
+            if (!seconds || seconds <= 0) return '';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            if (hours > 0) {
+                return `${hours} год ${minutes} хв ${secs} сек`;
+            } else if (minutes > 0) {
+                return `${minutes} хв ${secs} сек`;
+            }
+            return `${secs} сек`;
+        }
+
+        function formatTimeHM(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            if (hours > 0) {
+                return `${hours} год ${minutes} хв`;
+            }
+            return `${minutes} хв`;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tabName === 'weight') loadWeightData();
+            if (tabName === 'training') loadTrainingData();
+            if (tabName === 'mental') loadMentalData();
+            if (tabName === 'health') loadHealthData();
+            if (tabName === 'report') loadReport();
+            if (tabName === 'feed') loadEventsFeed();
+            if (tabName === 'settings') loadSettings();
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const d = await res.json();
+                document.getElementById('statFeed').textContent = d.feed;
+                document.getElementById('statWalk').textContent = formatTimeHM(d.walk_seconds || 0);
+                document.getElementById('statSleep').textContent = formatTimeHM(d.sleep_seconds || 0);
+                document.getElementById('statToilet').textContent = d.toilet;
+                document.getElementById('petName').textContent = d.pet_name;
+                document.getElementById('currentDate').textContent = new Date().toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
+            } catch(e) { console.error(e); }
+        }
+
+        function changeDay(delta) {
+            currentDayOffset += delta;
+            if (currentDayOffset === 0) {
+                document.getElementById('todayBtn').style.opacity = '0.5';
+            } else {
+                document.getElementById('todayBtn').style.opacity = '1';
+            }
+            loadTimeline();
+        }
+
+        async function loadTimeline() {
+            try {
+                const res = await fetch(`/api/timeline?offset=${currentDayOffset}`);
+                const data = await res.json();
+
+                const sleepPoints = [];
+                const walkPoints = [];
+                const feedPoints = [];
+                const toiletPoints = [];
+
+                data.events.forEach(e => {
+                    const hour = new Date(e.start_time * 1000).getHours();
+                    const minute = new Date(e.start_time * 1000).getMinutes();
+                    const xValue = hour + minute / 60;
+
+                    if (e.type === 'sleep' && e.duration > 0) {
+                        sleepPoints.push({ x: xValue, y: 10, duration: e.duration });
+                    } else if (e.type === 'walk' && e.duration > 0) {
+                        walkPoints.push({ x: xValue, y: 20, duration: e.duration });
+                    } else if (e.type === 'feed') {
+                        feedPoints.push({ x: xValue, y: 30 });
+                    } else if (e.type === 'toilet') {
+                        toiletPoints.push({ x: xValue, y: 40 });
+                    }
+                });
+
+                if (timelineChart) timelineChart.destroy();
+
+                timelineChart = new Chart(document.getElementById('timelineChart'), {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            { label: 'Сон', data: sleepPoints, backgroundColor: '#9b59b6', borderColor: '#9b59b6', pointRadius: 10, pointHoverRadius: 14, pointStyle: 'rectRounded', showLine: false },
+                            { label: 'Прогулянка', data: walkPoints, backgroundColor: '#3498db', borderColor: '#3498db', pointRadius: 10, pointHoverRadius: 14, pointStyle: 'rectRounded', showLine: false },
+                            { label: 'Годування', data: feedPoints, backgroundColor: '#f39c12', borderColor: '#f39c12', pointRadius: 8, pointHoverRadius: 12, pointStyle: 'circle', showLine: false },
+                            { label: 'Туалет', data: toiletPoints, backgroundColor: '#2ecc71', borderColor: '#2ecc71', pointRadius: 8, pointHoverRadius: 12, pointStyle: 'circle', showLine: false }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            x: { title: { display: true, text: 'Година дня' }, min: 0, max: 24, ticks: { stepSize: 2 } },
+                            y: { display: false, min: 0, max: 50 }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const point = context.raw;
+                                        let label = context.dataset.label;
+                                        if (point.duration) {
+                                            label += `: ${formatDuration(point.duration)}`;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadEventsFeed() {
+            try {
+                const res = await fetch('/api/events');
+                const events = await res.json();
+
+                document.getElementById('eventsFeed').innerHTML = events.map(e => {
+                    let title = eventNames[e.type] || e.type;
+                    let durationText = '';
+
+                    if (e.type === 'toilet' && e.subtype) {
+                        title = toiletTypes[e.subtype] || e.subtype;
+                    }
+                    if (e.type === 'behavior' && e.subtype) {
+                        title = `Поведінка: ${e.subtype}`;
+                    }
+                    if (e.value && e.value > 0) {
+                        durationText = `⏱ ${formatDuration(e.value)}`;
+                    }
+
+                    return `
+                        <div class="event-card">
+                            <div class="event-time-large">
+                                <div class="event-hour">${e.time_hour}</div>
+                                <div class="event-minute">${e.time_str}</div>
+                            </div>
+                            <div class="event-icon-large">${eventIcons[e.type] || '📌'}</div>
+                            <div class="event-details">
+                                <div class="event-title-large">${title}</div>
+                                ${durationText ? `<div class="event-duration">${durationText}</div>` : ''}
+                            </div>
+                            <button class="delete-event-btn" onclick="deleteEvent(${e.id})">🗑</button>
+                        </div>
+                    `;
+                }).join('') || '<div class="empty-state">📭 Немає подій</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadWeekly() {
+            try {
+                const res = await fetch('/api/weekly');
+                const d = await res.json();
+
+                if (weeklyChart) weeklyChart.destroy();
+                weeklyChart = new Chart(document.getElementById('weeklyChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: d.dates,
+                        datasets: [
+                            { label: 'Прогулянки (хв)', data: d.walk, backgroundColor: '#3498db', borderRadius: 8 },
+                            { label: 'Сон (год)', data: d.sleep, backgroundColor: '#9b59b6', borderRadius: 8 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true }
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteEvent(id) {
+            if (confirm('Видалити подію?')) {
+                await fetch('/api/delete_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                showToast('🗑 Видалено');
+                loadEventsFeed();
+                loadStats();
+                loadTimeline();
+            }
+        }
+
+        async function quickAdd(type) {
+            await fetch('/api/add_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type }) });
+            showToast('✅ Записано');
+            loadStats();
+            loadEventsFeed();
+            loadTimeline();
+        }
+
+        async function toggleWalk() {
+            const res = await fetch('/api/walk_status');
+            const status = await res.json();
+
+            if (status.active) {
+                const r = await fetch('/api/stop_walk', { method: 'POST' });
+                const result = await r.json();
+                showToast(`✅ Прогулянка завершена! ${formatDuration(result.duration)}`);
+                document.getElementById('walkIcon').innerHTML = '🚶';
+                document.getElementById('walkText').innerHTML = 'Прогулянка';
+            } else {
+                await fetch('/api/start_walk', { method: 'POST' });
+                showToast('🚶 Прогулянка розпочата');
+                document.getElementById('walkIcon').innerHTML = '⏹️';
+                document.getElementById('walkText').innerHTML = 'Зупинити';
+            }
+            loadStats();
+            loadEventsFeed();
+            loadTimeline();
+        }
+
+        async function toggleSleep() {
+            const res = await fetch('/api/sleep_status');
+            const status = await res.json();
+
+            if (status.active) {
+                const r = await fetch('/api/stop_sleep', { method: 'POST' });
+                const result = await r.json();
+                showToast(`✅ Сон завершено! ${formatDuration(result.duration)}`);
+                document.getElementById('sleepIcon').innerHTML = '😴';
+                document.getElementById('sleepText').innerHTML = 'Сон';
+            } else {
+                await fetch('/api/start_sleep', { method: 'POST' });
+                showToast('💤 Сон розпочато');
+                document.getElementById('sleepIcon').innerHTML = '⏹️';
+                document.getElementById('sleepText').innerHTML = 'Зупинити';
+            }
+            loadStats();
+            loadEventsFeed();
+            loadTimeline();
+        }
+
+        async function loadWeightData() {
+            try {
+                const res = await fetch('/api/weight');
+                const d = await res.json();
+
+                if (weightChart) weightChart.destroy();
+                if (d.dates.length > 0) {
+                    weightChart = new Chart(document.getElementById('weightChart'), {
+                        type: 'line',
+                        data: { labels: d.dates, datasets: [{ label: 'Вага (кг)', data: d.weights, borderColor: '#3498db', fill: false, tension: 0.2 }] },
+                        options: { responsive: true, maintainAspectRatio: true }
+                    });
+                }
+
+                document.getElementById('weightList').innerHTML = d.history.map(w => `
+                    <div class="event-card"><div class="event-icon-large">⚖️</div><div class="event-details"><div class="event-title-large">${w.weight} кг</div><div class="event-subtitle">${w.date}</div></div></div>
+                `).join('') || '<div class="empty-state">📭 Немає даних</div>';
+
+                document.getElementById('foodInfo').innerHTML = `🐾 Рекомендована порція: <strong>${d.daily_food}</strong> г/день<br><small>(по ${Math.round(d.daily_food/4)} г на годування)</small>`;
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadTrainingData() {
+            try {
+                const res = await fetch('/api/training');
+                const d = await res.json();
+
+                if (trainingChart) trainingChart.destroy();
+                if (d.commands.length > 0) {
+                    trainingChart = new Chart(document.getElementById('trainingChart'), {
+                        type: 'bar',
+                        data: { labels: d.commands, datasets: [{ label: 'Успішність', data: d.scores, backgroundColor: '#9b59b6', borderRadius: 8 }] },
+                        options: { responsive: true, maintainAspectRatio: true, scales: { y: { max: 5 } } }
+                    });
+                }
+
+                document.getElementById('trainingList').innerHTML = d.history.map(t => `
+                    <div class="event-card"><div class="event-icon-large">🏋️</div><div class="event-details"><div class="event-title-large">${t.command}</div><div class="event-subtitle">${t.duration} хв, успішність ${t.success_rate}/5</div><div class="event-duration">${t.date}</div></div></div>
+                `).join('') || '<div class="empty-state">📭 Немає даних</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadMentalData() {
+            try {
+                const res = await fetch('/api/mental');
+                const d = await res.json();
+
+                if (mentalChart) mentalChart.destroy();
+                mentalChart = new Chart(document.getElementById('mentalChart'), {
+                    type: 'bar',
+                    data: { labels: d.dates, datasets: [{ label: 'Ментальна активність (хв)', data: d.durations, backgroundColor: '#e67e22', borderRadius: 8 }] },
+                    options: { responsive: true, maintainAspectRatio: true }
+                });
+
+                if (pottyChart) pottyChart.destroy();
+                if (d.potty_types.length > 0) {
+                    pottyChart = new Chart(document.getElementById('pottyChart'), {
+                        type: 'pie',
+                        data: { labels: d.potty_types, datasets: [{ data: d.potty_counts, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'] }] },
+                        options: { responsive: true, maintainAspectRatio: true }
+                    });
+                }
+
+                const avg = d.avg_mental || 0;
+                document.getElementById('mentalAdvice').innerHTML = avg < 15 ?
+                    '⚠️ Низьке ментальне навантаження! Рекомендується 15+ хв інтелектуальних ігор щодня.' :
+                    '✅ Чудовий баланс! Продовжуйте в тому ж дусі.';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadHealthData() {
+            try {
+                const res = await fetch('/api/health');
+                const d = await res.json();
+
+                document.getElementById('remindersList').innerHTML = d.reminders.length > 0 ?
+                    d.reminders.map(m => `
+                        <div class="event-card"><div class="event-icon-large">💊</div><div class="event-details"><div class="event-title-large">${m.title}</div><div class="event-subtitle">⏰ ${m.next_due_str}</div></div><button onclick="completeReminder(${m.id})" style="background:#2ecc71; border:none; border-radius:20px; padding:6px 12px; color:white;">✅ Виконано</button></div>
+                    `).join('') : '<div class="empty-state">📭 Немає активних нагадувань</div>';
+
+                document.getElementById('symptomsList').innerHTML = d.symptoms.map(s => `
+                    <div class="event-card"><div class="event-icon-large">🌡️</div><div class="event-details"><div class="event-title-large">${s.date}</div><div class="event-subtitle">${s.temperature ? s.temperature + '°C | ' : ''}Апетит: ${s.appetite}/5 | Настрій: ${s.mood}</div>${s.note ? `<div class="event-duration">📝 ${s.note}</div>` : ''}</div></div>
+                `).join('') || '<div class="empty-state">📭 Немає записів</div>';
+
+                document.getElementById('allergiesList').innerHTML = d.allergies.map(a => `
+                    <div class="event-card"><div class="event-icon-large">⚠️</div><div class="event-details"><div class="event-title-large">${a.product}</div><div class="event-subtitle">Реакція: ${a.reaction || 'не вказано'} | Ступінь: ${a.severity}/5</div></div><button class="delete-event-btn" onclick="deleteAllergy(${a.id})">🗑</button></div>
+                `).join('') || '<div class="empty-state">📭 Немає алергій</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadReport() {
+            try {
+                const res = await fetch('/api/report');
+                const d = await res.json();
+                document.getElementById('reportContent').innerHTML = `
+                    <p>📊 <strong>Звіт за ${d.days} днів</strong></p>
+                    <p>🍖 Годувань: ${d.feed}</p>
+                    <p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p>
+                    <p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p>
+                    <p>🚽 Туалет: ${d.toilet}</p>
+                    <p>🧠 Ментальне: ${d.mental_minutes} хв</p>
+                    <p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>
+                `;
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadInsight() {
+            try {
+                const res = await fetch('/api/insight');
+                const d = await res.json();
+                document.getElementById('insightText').innerHTML = d.insight;
+            } catch(e) { console.error(e); }
+        }
+
+        // Функції налаштувань
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const d = await res.json();
+                document.getElementById('settingPetName').value = d.pet_name || 'Айла';
+                document.getElementById('settingBirthDate').value = d.birth_date || '';
+                document.getElementById('settingFoodDensity').value = d.food_density_calories || '3800';
+                document.getElementById('settingPlannedMeals').value = d.planned_meals || '4';
+                document.getElementById('settingPlannedSleep').value = d.planned_sleep_hours || '14';
+                document.getElementById('settingTargetWeight').value = d.target_weight || '8.0';
+                document.getElementById('settingPottyReminder').value = d.potty_reminder_minutes || '25';
+                document.getElementById('settingTelegramToken').value = d.telegram_bot_token || '';
+                document.getElementById('settingTelegramChatId').value = d.telegram_chat_id || '';
+            } catch(e) { console.error(e); }
+        }
+
+        async function saveAllSettings() {
+            const settings = {
+                pet_name: document.getElementById('settingPetName').value,
+                birth_date: document.getElementById('settingBirthDate').value,
+                food_density_calories: document.getElementById('settingFoodDensity').value,
+                planned_meals: document.getElementById('settingPlannedMeals').value,
+                planned_sleep_hours: document.getElementById('settingPlannedSleep').value,
+                target_weight: document.getElementById('settingTargetWeight').value,
+                potty_reminder_minutes: document.getElementById('settingPottyReminder').value,
+                telegram_bot_token: document.getElementById('settingTelegramToken').value,
+                telegram_chat_id: document.getElementById('settingTelegramChatId').value
+            };
+
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            });
+
+            showToast('⚙️ Налаштування збережено');
+            loadStats();
+            loadInsight();
+        }
+
+        async function testTelegram() {
+            const botToken = document.getElementById('settingTelegramToken').value;
+            const chatId = document.getElementById('settingTelegramChatId').value;
+
+            if (!botToken || !chatId) {
+                showToast('❌ Введіть Bot Token та Chat ID');
+                return;
+            }
+
+            const res = await fetch('/api/test_telegram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bot_token: botToken, chat_id: chatId })
+            });
+            const d = await res.json();
+            showToast(d.message);
+        }
+
+        async function saveWeight() {
+            const w = document.getElementById('weightInput').value;
+            if (w) {
+                await fetch('/api/add_weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weight: parseFloat(w) }) });
+                closeModal('weightModal');
+                showToast('⚖️ Збережено');
+                loadWeightData();
+                loadStats();
+                document.getElementById('weightInput').value = '';
+            }
+        }
+
+        async function saveTraining() {
+            await fetch('/api/add_training', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                command: document.getElementById('commandInput').value,
+                duration: parseInt(document.getElementById('durationInput').value) || 10,
+                success_rate: parseInt(document.getElementById('successInput').value)
+            }) });
+            closeModal('trainingModal');
+            showToast('🏋️ Збережено');
+            loadTrainingData();
+        }
+
+        async function saveMental() {
+            await fetch('/api/add_mental', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                activity_type: document.getElementById('mentalTypeInput').value,
+                duration: parseInt(document.getElementById('mentalDurationInput').value) || 15,
+                difficulty: 3
+            }) });
+            closeModal('mentalModal');
+            showToast('🧠 Збережено');
+            loadMentalData();
+        }
+
+        async function saveSymptom() {
+            await fetch('/api/add_symptom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                temperature: parseFloat(document.getElementById('tempInput').value) || null,
+                appetite: parseInt(document.getElementById('appetiteInput').value),
+                mood: document.getElementById('moodInput').value,
+                note: document.getElementById('symptomNote').value
+            }) });
+            closeModal('symptomModal');
+            showToast('🌡️ Збережено');
+            loadHealthData();
+            document.getElementById('tempInput').value = '';
+            document.getElementById('symptomNote').value = '';
+        }
+
+        async function saveAllergy() {
+            const product = document.getElementById('allergyProduct').value;
+            if (!product) return;
+            await fetch('/api/add_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                product: product,
+                reaction: document.getElementById('allergyReaction').value,
+                severity: parseInt(document.getElementById('allergySeverity').value)
+            }) });
+            closeModal('allergyModal');
+            showToast('⚠️ Додано');
+            loadHealthData();
+            document.getElementById('allergyProduct').value = '';
+            document.getElementById('allergyReaction').value = '';
+        }
+
+        async function deleteAllergy(id) {
+            if (confirm('Видалити алергію?')) {
+                await fetch('/api/delete_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                loadHealthData();
+            }
+        }
+
+        async function saveReminder() {
+            const title = document.getElementById('reminderTitle').value;
+            const interval = document.getElementById('reminderInterval').value;
+            if (!title || !interval) return;
+            await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                title: title,
+                description: document.getElementById('reminderDesc').value,
+                interval_days: parseInt(interval)
+            }) });
+            closeModal('reminderModal');
+            showToast('💊 Додано');
+            loadHealthData();
+            document.getElementById('reminderTitle').value = '';
+            document.getElementById('reminderInterval').value = '';
+            document.getElementById('reminderDesc').value = '';
+        }
+
+        async function completeReminder(id) {
+            await fetch('/api/complete_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+            showToast('✅ Виконано');
+            loadHealthData();
+        }
+
+        async function sendReport() {
+            const res = await fetch('/api/send_report');
+            const d = await res.json();
+            showToast(d.message);
+        }
+
+        function showWeightModal() { document.getElementById('weightModal').style.display = 'flex'; }
+        function showTrainingModal() { document.getElementById('trainingModal').style.display = 'flex'; }
+        function showMentalModal() { document.getElementById('mentalModal').style.display = 'flex'; }
+        function showSymptomModal() { document.getElementById('symptomModal').style.display = 'flex'; }
+        function showAllergyModal() { document.getElementById('allergyModal').style.display = 'flex'; }
+        function showReminderModal() { document.getElementById('reminderModal').style.display = 'flex'; }
+
+        async function checkActiveStates() {
+            const walk = await fetch('/api/walk_status').then(r => r.json());
+            if (walk.active) {
+                document.getElementById('walkIcon').innerHTML = '⏹️';
+                document.getElementById('walkText').innerHTML = 'Зупинити';
+            }
+            const sleep = await fetch('/api/sleep_status').then(r => r.json());
+            if (sleep.active) {
+                document.getElementById('sleepIcon').innerHTML = '⏹️';
+                document.getElementById('sleepText').innerHTML = 'Зупинити';
+            }
+        }
+
+        // Ініціалізація
+        loadStats();
+        loadTimeline();
+        loadWeekly();
+        loadEventsFeed();
+        loadWeightData();
+        loadTrainingData();
+        loadMentalData();
+        loadHealthData();
+        loadInsight();
+        loadSettings();
+        checkActiveStates();
+
+        setInterval(() => { loadStats(); loadInsight(); }, 30000);
+    </script>
+</body>
+</html>
