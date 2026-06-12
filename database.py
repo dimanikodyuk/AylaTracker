@@ -202,7 +202,9 @@ def init_db():
             "telegram_bot_token": "",
             "telegram_chat_id": "",
             "food_density_calories": "3800",
-            "potty_reminder_minutes": "25"
+            "potty_reminder_minutes": "25",
+            "planned_meals": "4",  # Додано
+            "planned_sleep_hours": "20"  # Додано
         }
         for key, value in defaults.items():
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, value))

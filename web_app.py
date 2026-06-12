@@ -278,13 +278,13 @@ def api_insight():
     last = db.get_last_weight()
     settings = db.get_settings()
 
-    # Розрахунок виконання плану годувань
-    planned_meals = settings.get('planned_meals', 4)
+    # Розрахунок виконання плану годувань (конвертуємо в int)
+    planned_meals = int(settings.get('planned_meals', 4))
     feed_progress = stats['feed']
     feed_percent = int((feed_progress / planned_meals) * 100) if planned_meals > 0 else 0
 
-    # Розрахунок плану сну
-    planned_sleep_hours = settings.get('planned_sleep_hours', 14)
+    # Розрахунок плану сну (конвертуємо в float)
+    planned_sleep_hours = float(settings.get('planned_sleep_hours', 14))
     sleep_hours = stats['sleep_seconds'] / 3600
     sleep_percent = int((sleep_hours / planned_sleep_hours) * 100) if planned_sleep_hours > 0 else 0
 
