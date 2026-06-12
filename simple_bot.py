@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Telegram Bot (оновлена версія)
+Ayla Tracker - Telegram Bot (для Python 3.11)
 """
 
 import logging
@@ -94,16 +94,10 @@ async def handle_message(update: Update, context):
 
     logger.info(f"Повідомлення від {chat_id}: {text}")
 
-    # Їжа
     if text == "🍖 Їжа":
         db.add_event("feed", note="🍖 Годування")
         await update.message.reply_text("✅ Записано годування!")
 
-        # Плануємо нагадування про туалет
-        remind_minutes = int(db.get_setting('potty_reminder_minutes', 25))
-        threading.Timer(remind_minutes * 60, send_potty_reminder, args=[chat_id]).start()
-
-    # Туалет
     elif text == "💧 Піся":
         db.add_event("toilet", "піся", note="💧 Піся")
         await update.message.reply_text("✅ Записано: Піся!", reply_markup=get_potty_cue_keyboard())
@@ -112,20 +106,15 @@ async def handle_message(update: Update, context):
         db.add_event("toilet", "кака", note="💩 Кака")
         await update.message.reply_text("✅ Записано: Кака!", reply_markup=get_potty_cue_keyboard())
 
-    # Прогулянка
     elif text == "🚶 Почати прогулянку":
         safe_duration = db.get_safe_walk_duration_minutes()
         db.start_session("walk", expected_duration=safe_duration)
-        await update.message.reply_text(
-            f"🚶 Прогулянка розпочата!\n"
-            f"⏰ Безпечний ліміт: {safe_duration} хв"
-        )
+        await update.message.reply_text(f"🚶 Прогулянка розпочата!\n⏰ Безпечний ліміт: {safe_duration} хв")
 
     elif text == "⏰ Закінчити прогулянку":
         duration = db.stop_session("walk")
         await update.message.reply_text(f"✅ Прогулянка завершена!\n⏱ Тривалість: {duration // 60} хв")
 
-    # Сон
     elif text == "😴 Почати сон":
         db.start_session("sleep")
         await update.message.reply_text("💤 Сон розпочато!")
@@ -134,20 +123,16 @@ async def handle_message(update: Update, context):
         duration = db.stop_session("sleep")
         await update.message.reply_text(f"✅ Сон завершено!\n⏱ Тривалість: {duration // 60} хв")
 
-    # Вага
     elif text == "⚖️ Вага":
         await update.message.reply_text("⚖️ Надішліть вагу Айли в кг (наприклад: 4.5)")
         context.user_data['awaiting_weight'] = True
 
-    # Ментальне
     elif text == "🧠 Ментальне":
         await update.message.reply_text("🧠 Оберіть тип активності:", reply_markup=get_mental_keyboard())
 
-    # Тренування
     elif text == "🏋️ Тренування":
         await update.message.reply_text("🏋️ Оберіть команду:", reply_markup=get_training_keyboard())
 
-    # Статистика
     elif text == "📊 Статистика":
         stats = db.get_today_stats()
         await update.message.reply_text(
@@ -159,7 +144,6 @@ async def handle_message(update: Update, context):
             parse_mode='HTML'
         )
 
-    # Звіт
     elif text == "📈 Звіт":
         report = db.get_full_report(7)
         await update.message.reply_text(
@@ -173,33 +157,27 @@ async def handle_message(update: Update, context):
             parse_mode='HTML'
         )
 
-    # Допомога
     elif text == "ℹ️ Допомога":
         await update.message.reply_text(
             "📖 <b>Довідка</b>\n\n"
             "• 🍖 Їжа - запис годування\n"
             "• 🚶 Прогулянка - таймер з безпечним лімітом\n"
             "• 😴 Сон - таймер сну\n"
-            "• 💧 Піся/💩 Кака - запис туалету з маркерами\n"
+            "• 💧 Піся/💩 Кака - запис туалету\n"
             "• 🧠 Ментальне - інтелектуальні ігри\n"
             "• 🏋️ Тренування - навчання команд\n"
             "• ⚖️ Вага - контроль розвитку\n\n"
-            "📊 <b>Команди:</b>\n"
             "/start - Головне меню\n"
             "/myid - Отримати Chat ID",
             parse_mode='HTML'
         )
 
-    # Обробка ваги
     elif context.user_data.get('awaiting_weight'):
         try:
             weight = float(text.replace(',', '.'))
             db.add_weight(weight)
             daily_food = db.calculate_daily_food_amount(weight)
-            await update.message.reply_text(
-                f"✅ Вагу {weight} кг збережено!\n"
-                f"🍖 Рекомендована порція: {daily_food} г/день"
-            )
+            await update.message.reply_text(f"✅ Вагу {weight} кг збережено!\n🍖 Рекомендована порція: {daily_food} г/день")
             context.user_data['awaiting_weight'] = False
         except ValueError:
             await update.message.reply_text("❌ Надішліть число (наприклад: 4.5)")
@@ -213,7 +191,6 @@ async def button_callback(update: Update, context):
     await query.answer()
     data = query.data
 
-    # Маркери туалету
     if data.startswith("cue_"):
         cue_map = {
             "cue_circling": "Крутилась", "cue_sniffing": "Нюхала підлогу",
@@ -223,15 +200,12 @@ async def button_callback(update: Update, context):
         db.add_potty_cue(cue_type, success=0)
         await query.edit_message_text(f"🔍 Записано маркер: {cue_type}")
 
-    # Тренування
     elif data.startswith("training_"):
         cmd_map = {
             "training_sit": "Сідати", "training_down": "Лежати",
             "training_heel": "Поруч", "training_paw": "Дай лапу"
         }
         command = cmd_map.get(data, "Сідати")
-
-        # Запитуємо оцінку
         keyboard = [
             [InlineKeyboardButton("✅ Відмінно (5)", callback_data=f"rate_5_{command}")],
             [InlineKeyboardButton("👍 Добре (4)", callback_data=f"rate_4_{command}")],
@@ -240,7 +214,6 @@ async def button_callback(update: Update, context):
         ]
         await query.edit_message_text(f"Оцініть виконання '{command}':", reply_markup=InlineKeyboardMarkup(keyboard))
 
-    # Оцінка тренування
     elif data.startswith("rate_"):
         parts = data.split("_")
         rate = int(parts[1])
@@ -248,7 +221,6 @@ async def button_callback(update: Update, context):
         db.add_training(command, 10, rate)
         await query.edit_message_text(f"✅ Записано тренування: {command} (оцінка {rate}/5)")
 
-    # Ментальна активність
     elif data.startswith("mental_"):
         act_map = {
             "mental_puzzle": "Головоломка", "mental_scent": "Пошук ласощів",
@@ -264,40 +236,6 @@ async def myid(update: Update, context):
     await update.message.reply_text(f"🆔 Ваш Chat ID: `{chat_id}`", parse_mode='Markdown')
 
 
-def send_potty_reminder(chat_id):
-    """Відправка нагадування про туалет"""
-    try:
-        import requests
-        token = db.get_setting('telegram_bot_token')
-        if token:
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            requests.post(url, json={
-                'chat_id': chat_id,
-                'text': "⏱️ Айла поїла ~20 хв тому. Час вийти на прогулянку, щоб підтримати чисту поведінку вдома!"
-            })
-    except Exception as e:
-        logger.error(f"Помилка нагадування: {e}")
-
-
-def check_overdue_reminders():
-    """Перевірка прострочених нагадувань"""
-    reminders = db.get_due_reminders()
-    token = db.get_setting('telegram_bot_token')
-    if not token:
-        return
-
-    for r in reminders:
-        try:
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            requests.post(url, json={
-                'chat_id': db.get_setting('telegram_chat_id'),
-                'text': f"💊 <b>Нагадування!</b>\n\n{r['title']}\n{r.get('description', '')}\n\n⏰ Термін виконання: {r['next_due_str']}",
-                'parse_mode': 'HTML'
-            })
-        except Exception as e:
-            logger.error(f"Помилка нагадування: {e}")
-
-
 def run_bot():
     token = os.getenv('BOT_TOKEN')
     if not token:
@@ -305,24 +243,14 @@ def run_bot():
         return
 
     db.init_db()
-
-    # Запускаємо перевірку нагадувань в окремому потоці
-    def reminder_loop():
-        while True:
-            time.sleep(3600)  # Перевіряємо кожну годину
-            check_overdue_reminders()
-
-    reminder_thread = threading.Thread(target=reminder_loop, daemon=True)
-    reminder_thread.start()
-
-    app = Application.builder().token(token).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("myid", myid))
-    app.add_handler(CallbackQueryHandler(button_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application = Application.builder().token(token).build()
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("myid", myid))
+    application.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("🚀 Бот запущено!")
-    app.run_polling()
+    application.run_polling()
 
 
 if __name__ == '__main__':
