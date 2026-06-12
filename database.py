@@ -530,71 +530,6 @@ def delete_allergy(allergy_id):
         conn.execute("DELETE FROM allergies WHERE id = ?", (allergy_id,))
         return True
 
-
-def get_full_report(days=7):
-    start_time = int(time.time()) - days * 86400
-    with get_db() as conn:
-        feed = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        walk = \
-        conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (start_time,)).fetchone()[
-            0] or 0
-        toilet = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        sleep = \
-        conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (start_time,)).fetchone()[
-            0] or 0
-        mental = \
-        conn.execute("SELECT SUM(duration) FROM mental_activities WHERE timestamp >= ?", (start_time,)).fetchone()[
-            0] or 0
-        training_count = \
-        conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
-        training_avg = \
-        conn.execute("SELECT AVG(success_rate) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[
-            0] or 0
-
-        return {
-            'days': days,
-            'feed': feed,
-            'walk_minutes': walk // 60,
-            'toilet': toilet,
-            'sleep_hours': sleep // 3600,
-            'mental_minutes': mental,
-            'training_count': training_count,
-            'training_avg': round(training_avg, 1)
-        }
-
-
-def get_weekly_chart_data():
-    start_time = int(time.time()) - 7 * 86400
-    with get_db() as conn:
-        walk_data = conn.execute("""
-            SELECT date(timestamp, 'unixepoch') as date, SUM(value)/60 as total
-            FROM events WHERE type='walk' AND timestamp >= ? 
-            GROUP BY date ORDER BY date
-        """, (start_time,)).fetchall()
-
-        sleep_data = conn.execute("""
-            SELECT date(timestamp, 'unixepoch') as date, SUM(value)/3600 as total
-            FROM events WHERE type='sleep' AND timestamp >= ? 
-            GROUP BY date ORDER BY date
-        """, (start_time,)).fetchall()
-
-        mental_data = conn.execute("""
-            SELECT date(timestamp, 'unixepoch') as date, SUM(duration) as total
-            FROM mental_activities WHERE timestamp >= ? 
-            GROUP BY date ORDER BY date
-        """, (start_time,)).fetchall()
-
-    dates = [d['date'] for d in walk_data]
-    return {
-        'dates': dates,
-        'walk': [d['total'] for d in walk_data],
-        'sleep': [d['total'] for d in sleep_data],
-        'mental': [d['total'] for d in mental_data]
-    }
-
-
 def add_user(chat_id, username=None, first_name=None, last_name=None):
     with get_db() as conn:
         now = int(time.time())
@@ -619,3 +554,84 @@ def is_user_allowed(chat_id):
     with get_db() as conn:
         row = conn.execute("SELECT 1 FROM allowed_users WHERE chat_id = ? AND is_active = 1", (chat_id,)).fetchone()
         return row is not None
+
+
+def get_due_reminders():
+    """Отримання прострочених нагадувань"""
+    now = int(time.time())
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT * FROM medical_reminders 
+            WHERE enabled = 1 AND next_due <= ?
+            ORDER BY next_due ASC
+        """, (now,)).fetchall()
+        reminders = []
+        for r in rows:
+            rem = dict(r)
+            rem['next_due_str'] = datetime.fromtimestamp(rem['next_due']).strftime('%d.%m.%Y')
+            reminders.append(rem)
+        return reminders
+
+def get_weekly_chart_data():
+    """Отримання даних для тижневого графіка"""
+    start_time = int(time.time()) - 7 * 86400
+    with get_db() as conn:
+        walk_data = conn.execute("""
+            SELECT date(timestamp, 'unixepoch') as date, COALESCE(SUM(value)/60, 0) as total
+            FROM events WHERE type='walk' AND timestamp >= ? 
+            GROUP BY date ORDER BY date
+        """, (start_time,)).fetchall()
+
+        sleep_data = conn.execute("""
+            SELECT date(timestamp, 'unixepoch') as date, COALESCE(SUM(value)/3600, 0) as total
+            FROM events WHERE type='sleep' AND timestamp >= ? 
+            GROUP BY date ORDER BY date
+        """, (start_time,)).fetchall()
+
+        # Створюємо масив всіх днів тижня
+        dates = []
+        for i in range(7):
+            d = datetime.now() - timedelta(days=6 - i)
+            dates.append(d.strftime('%Y-%m-%d'))
+
+        walk_dict = {r['date']: r['total'] for r in walk_data}
+        sleep_dict = {r['date']: r['total'] for r in sleep_data}
+
+        return {
+            'dates': dates,
+            'walk': [walk_dict.get(d, 0) for d in dates],
+            'sleep': [sleep_dict.get(d, 0) for d in dates]
+        }
+
+
+def get_full_report(days=7):
+    """Отримання повного звіту"""
+    start_time = int(time.time()) - days * 86400
+    with get_db() as conn:
+        feed = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?",
+                            (start_time,)).fetchone()[0]
+        toilet = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?",
+                             (start_time,)).fetchone()[0]
+        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?",
+                              (start_time,)).fetchone()[0]
+        training_count = \
+        conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?",
+                                    (start_time,)).fetchone()[0]
+
+        return {
+            'days': days,
+            'feed': feed,
+            'walk_seconds': walk,
+            'walk_minutes': walk // 60,
+            'toilet': toilet,
+            'sleep_seconds': sleep,
+            'sleep_hours': sleep // 3600,
+            'mental_minutes': mental,
+            'training_count': training_count,
+            'training_avg': round(training_avg, 1)
+        }

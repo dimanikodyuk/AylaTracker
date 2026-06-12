@@ -534,15 +534,15 @@
         </div>
     </div>
 
-    <div class="tabs">
-        <button class="tab active" data-tab="activity" onclick="switchTab('activity')">📊 Активність</button>
-        <button class="tab" data-tab="feed" onclick="switchTab('feed')">📋 Стрічка</button>
-        <button class="tab" data-tab="weight" onclick="switchTab('weight')">⚖️ Вага</button>
-        <button class="tab" data-tab="training" onclick="switchTab('training')">🏋️ Тренування</button>
-        <button class="tab" data-tab="mental" onclick="switchTab('mental')">🧠 Розвиток</button>
-        <button class="tab" data-tab="health" onclick="switchTab('health')">💊 Здоров'я</button>
-        <button class="tab" data-tab="report" onclick="switchTab('report')">📈 Звіт</button>
-        <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Налаштування</button>
+    <div class="tabs" id="tabsContainer">
+        <button class="tab active" data-tab="activity">📊 Активність</button>
+        <button class="tab" data-tab="feed">📋 Стрічка</button>
+        <button class="tab" data-tab="weight">⚖️ Вага</button>
+        <button class="tab" data-tab="training">🏋️ Тренування</button>
+        <button class="tab" data-tab="mental">🧠 Розвиток</button>
+        <button class="tab" data-tab="health">💊 Здоров'я</button>
+        <button class="tab" data-tab="report">📈 Звіт</button>
+        <button class="tab" data-tab="settings">⚙️ Налаштування</button>
     </div>
 
     <div id="tab-activity" class="tab-content active">
@@ -804,12 +804,23 @@
             document.getElementById(id).style.display = 'none';
         }
 
-        function switchTab(tabName) {
+        // ВИПРАВЛЕНА ФУНКЦІЯ switchTab
+        function switchTab(tabName, btnElement) {
+            // Приховуємо всі вкладки
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
 
+            // Оновлюємо активний стан кнопок
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            if (btnElement) {
+                btnElement.classList.add('active');
+            } else {
+                // Якщо викликано без кнопки, знаходимо за даними
+                const btn = document.querySelector(`.tab[data-tab="${tabName}"]`);
+                if (btn) btn.classList.add('active');
+            }
+
+            // Завантажуємо дані для активної вкладки
             if (tabName === 'weight') loadWeightData();
             if (tabName === 'training') loadTrainingData();
             if (tabName === 'mental') loadMentalData();
@@ -817,6 +828,17 @@
             if (tabName === 'report') loadReport();
             if (tabName === 'feed') loadEventsFeed();
             if (tabName === 'settings') loadSettings();
+        }
+
+        // Ініціалізація обробників для табів
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function(e) {
+                    const tabName = this.getAttribute('data-tab');
+                    switchTab(tabName, this);
+                });
+            });
         }
 
         async function loadStats() {
@@ -829,7 +851,7 @@
                 document.getElementById('statToilet').textContent = d.toilet;
                 document.getElementById('petName').textContent = d.pet_name;
                 document.getElementById('currentDate').textContent = new Date().toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadStats error:', e); }
         }
 
         function changeDay(delta) {
@@ -903,7 +925,7 @@
                         }
                     }
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadTimeline error:', e); }
         }
 
         async function loadEventsFeed() {
@@ -940,7 +962,7 @@
                         </div>
                     `;
                 }).join('') || '<div class="empty-state">📭 Немає подій</div>';
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadEventsFeed error:', e); }
         }
 
         async function loadWeekly() {
@@ -960,7 +982,7 @@
                     },
                     options: { responsive: true, maintainAspectRatio: true }
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadWeekly error:', e); }
         }
 
         async function deleteEvent(id) {
@@ -982,45 +1004,49 @@
         }
 
         async function toggleWalk() {
-            const res = await fetch('/api/walk_status');
-            const status = await res.json();
+            try {
+                const res = await fetch('/api/walk_status');
+                const status = await res.json();
 
-            if (status.active) {
-                const r = await fetch('/api/stop_walk', { method: 'POST' });
-                const result = await r.json();
-                showToast(`✅ Прогулянка завершена! ${formatDuration(result.duration)}`);
-                document.getElementById('walkIcon').innerHTML = '🚶';
-                document.getElementById('walkText').innerHTML = 'Прогулянка';
-            } else {
-                await fetch('/api/start_walk', { method: 'POST' });
-                showToast('🚶 Прогулянка розпочата');
-                document.getElementById('walkIcon').innerHTML = '⏹️';
-                document.getElementById('walkText').innerHTML = 'Зупинити';
-            }
-            loadStats();
-            loadEventsFeed();
-            loadTimeline();
+                if (status.active) {
+                    const r = await fetch('/api/stop_walk', { method: 'POST' });
+                    const result = await r.json();
+                    showToast(`✅ Прогулянка завершена! ${formatDuration(result.duration)}`);
+                    document.getElementById('walkIcon').innerHTML = '🚶';
+                    document.getElementById('walkText').innerHTML = 'Прогулянка';
+                } else {
+                    await fetch('/api/start_walk', { method: 'POST' });
+                    showToast('🚶 Прогулянка розпочата');
+                    document.getElementById('walkIcon').innerHTML = '⏹️';
+                    document.getElementById('walkText').innerHTML = 'Зупинити';
+                }
+                loadStats();
+                loadEventsFeed();
+                loadTimeline();
+            } catch(e) { console.error('toggleWalk error:', e); }
         }
 
         async function toggleSleep() {
-            const res = await fetch('/api/sleep_status');
-            const status = await res.json();
+            try {
+                const res = await fetch('/api/sleep_status');
+                const status = await res.json();
 
-            if (status.active) {
-                const r = await fetch('/api/stop_sleep', { method: 'POST' });
-                const result = await r.json();
-                showToast(`✅ Сон завершено! ${formatDuration(result.duration)}`);
-                document.getElementById('sleepIcon').innerHTML = '😴';
-                document.getElementById('sleepText').innerHTML = 'Сон';
-            } else {
-                await fetch('/api/start_sleep', { method: 'POST' });
-                showToast('💤 Сон розпочато');
-                document.getElementById('sleepIcon').innerHTML = '⏹️';
-                document.getElementById('sleepText').innerHTML = 'Зупинити';
-            }
-            loadStats();
-            loadEventsFeed();
-            loadTimeline();
+                if (status.active) {
+                    const r = await fetch('/api/stop_sleep', { method: 'POST' });
+                    const result = await r.json();
+                    showToast(`✅ Сон завершено! ${formatDuration(result.duration)}`);
+                    document.getElementById('sleepIcon').innerHTML = '😴';
+                    document.getElementById('sleepText').innerHTML = 'Сон';
+                } else {
+                    await fetch('/api/start_sleep', { method: 'POST' });
+                    showToast('💤 Сон розпочато');
+                    document.getElementById('sleepIcon').innerHTML = '⏹️';
+                    document.getElementById('sleepText').innerHTML = 'Зупинити';
+                }
+                loadStats();
+                loadEventsFeed();
+                loadTimeline();
+            } catch(e) { console.error('toggleSleep error:', e); }
         }
 
         async function loadWeightData() {
@@ -1042,7 +1068,7 @@
                 `).join('') || '<div class="empty-state">📭 Немає даних</div>';
 
                 document.getElementById('foodInfo').innerHTML = `🐾 Рекомендована порція: <strong>${d.daily_food}</strong> г/день<br><small>(по ${Math.round(d.daily_food/4)} г на годування)</small>`;
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadWeightData error:', e); }
         }
 
         async function loadTrainingData() {
@@ -1062,7 +1088,7 @@
                 document.getElementById('trainingList').innerHTML = d.history.map(t => `
                     <div class="event-card"><div class="event-icon-large">🏋️</div><div class="event-details"><div class="event-title-large">${t.command}</div><div class="event-subtitle">${t.duration} хв, успішність ${t.success_rate}/5</div><div class="event-duration">${t.date}</div></div></div>
                 `).join('') || '<div class="empty-state">📭 Немає даних</div>';
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadTrainingData error:', e); }
         }
 
         async function loadMentalData() {
@@ -1090,7 +1116,7 @@
                 document.getElementById('mentalAdvice').innerHTML = avg < 15 ?
                     '⚠️ Низьке ментальне навантаження! Рекомендується 15+ хв інтелектуальних ігор щодня.' :
                     '✅ Чудовий баланс! Продовжуйте в тому ж дусі.';
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadMentalData error:', e); }
         }
 
         async function loadHealthData() {
@@ -1110,7 +1136,7 @@
                 document.getElementById('allergiesList').innerHTML = d.allergies.map(a => `
                     <div class="event-card"><div class="event-icon-large">⚠️</div><div class="event-details"><div class="event-title-large">${a.product}</div><div class="event-subtitle">Реакція: ${a.reaction || 'не вказано'} | Ступінь: ${a.severity}/5</div></div><button class="delete-event-btn" onclick="deleteAllergy(${a.id})">🗑</button></div>
                 `).join('') || '<div class="empty-state">📭 Немає алергій</div>';
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadHealthData error:', e); }
         }
 
         async function loadReport() {
@@ -1126,7 +1152,7 @@
                     <p>🧠 Ментальне: ${d.mental_minutes} хв</p>
                     <p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>
                 `;
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadReport error:', e); }
         }
 
         async function loadInsight() {
@@ -1134,10 +1160,9 @@
                 const res = await fetch('/api/insight');
                 const d = await res.json();
                 document.getElementById('insightText').innerHTML = d.insight;
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadInsight error:', e); }
         }
 
-        // Функції налаштувань
         async function loadSettings() {
             try {
                 const res = await fetch('/api/settings');
@@ -1151,7 +1176,7 @@
                 document.getElementById('settingPottyReminder').value = d.potty_reminder_minutes || '25';
                 document.getElementById('settingTelegramToken').value = d.telegram_bot_token || '';
                 document.getElementById('settingTelegramChatId').value = d.telegram_chat_id || '';
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('loadSettings error:', e); }
         }
 
         async function saveAllSettings() {
@@ -1303,31 +1328,37 @@
         function showReminderModal() { document.getElementById('reminderModal').style.display = 'flex'; }
 
         async function checkActiveStates() {
-            const walk = await fetch('/api/walk_status').then(r => r.json());
-            if (walk.active) {
-                document.getElementById('walkIcon').innerHTML = '⏹️';
-                document.getElementById('walkText').innerHTML = 'Зупинити';
-            }
-            const sleep = await fetch('/api/sleep_status').then(r => r.json());
-            if (sleep.active) {
-                document.getElementById('sleepIcon').innerHTML = '⏹️';
-                document.getElementById('sleepText').innerHTML = 'Зупинити';
-            }
+            try {
+                const walk = await fetch('/api/walk_status').then(r => r.json());
+                if (walk.active) {
+                    document.getElementById('walkIcon').innerHTML = '⏹️';
+                    document.getElementById('walkText').innerHTML = 'Зупинити';
+                }
+                const sleep = await fetch('/api/sleep_status').then(r => r.json());
+                if (sleep.active) {
+                    document.getElementById('sleepIcon').innerHTML = '⏹️';
+                    document.getElementById('sleepText').innerHTML = 'Зупинити';
+                }
+            } catch(e) { console.error('checkActiveStates error:', e); }
         }
 
-        // Ініціалізація
-        loadStats();
-        loadTimeline();
-        loadWeekly();
-        loadEventsFeed();
-        loadWeightData();
-        loadTrainingData();
-        loadMentalData();
-        loadHealthData();
-        loadInsight();
-        loadSettings();
-        checkActiveStates();
+        // Ініціалізація після завантаження сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            initTabs();
+            loadStats();
+            loadTimeline();
+            loadWeekly();
+            loadEventsFeed();
+            loadWeightData();
+            loadTrainingData();
+            loadMentalData();
+            loadHealthData();
+            loadInsight();
+            loadSettings();
+            checkActiveStates();
+        });
 
+        // Оновлення статистики кожні 30 секунд
         setInterval(() => { loadStats(); loadInsight(); }, 30000);
     </script>
 </body>

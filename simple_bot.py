@@ -155,8 +155,7 @@ async def handle_message(update: Update, context):
             f"🍖 Годувань: {stats['feed']}\n"
             f"🚶 Прогулянок: {stats['walk_minutes']} хв\n"
             f"😴 Сну: {stats['sleep_hours']} год\n"
-            f"🚽 Туалет: {stats['toilet']}\n"
-            f"⚠️ Поведінка: {stats['behavior']}",
+            f"🚽 Туалет: {stats['toilet']}",
             parse_mode='HTML'
         )
 
