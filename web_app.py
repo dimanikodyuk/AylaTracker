@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Web Dashboard (Python 3.13 сумісна версія)
+Ayla Tracker - Web Dashboard (оновлена версія з новими функціями)
 """
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -52,9 +52,7 @@ def index():
                 <h1>🐾 Ayla Tracker</h1>
                 <p>Loading...</p>
                 <script>
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1000);
+                    setTimeout(function() { location.reload(); }, 1000);
                 </script>
             </body>
             </html>
@@ -64,7 +62,6 @@ def index():
         return f"<h1>Error loading page</h1><p>{e}</p>"
 
 
-# Додайте маршрут для статичних файлів
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Віддача статичних файлів"""
@@ -101,8 +98,7 @@ def api_stats():
         })
     except Exception as e:
         logger.error(f"Stats error: {e}")
-        return jsonify(
-            {'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'pet_name': 'Айла', 'age_months': 4})
+        return jsonify({'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'pet_name': 'Айла', 'age_months': 4})
 
 
 @app.route('/api/timeline')
@@ -403,8 +399,7 @@ def api_report():
         return jsonify(db.get_full_report(7))
     except Exception as e:
         logger.error(f"Report error: {e}")
-        return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0, 'mental_minutes': 0,
-                        'training_count': 0, 'training_avg': 0})
+        return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0, 'mental_minutes': 0, 'training_count': 0, 'training_avg': 0})
 
 
 @app.route('/api/send_report')
@@ -430,23 +425,18 @@ def api_insight():
 
         planned_meals = int(settings.get('planned_meals', 4))
         feed_progress = stats['feed']
-
         planned_sleep_hours = float(settings.get('planned_sleep_hours', 14))
         sleep_hours = stats['sleep_seconds'] / 3600 if stats['sleep_seconds'] else 0
-
         feed_percent = int((feed_progress / planned_meals) * 100) if planned_meals > 0 else 0
 
         insight = f"🐾 Сьогодні: {stats['feed']}/{planned_meals} годів ({feed_percent}%), {stats['walk_minutes']} хв прогулянок."
 
         if stats['walk_minutes'] > safe:
             insight += f" ⚠️ Прогулянка перевищує безпечний ліміт ({safe} хв)."
-
         if feed_progress < planned_meals:
             insight += f" 📊 Залишилося годувань: {planned_meals - feed_progress}"
-
         if sleep_hours < planned_sleep_hours:
             insight += f" 😴 Айла спала {sleep_hours:.1f} год з {planned_sleep_hours} год."
-
         if last:
             insight += f" 🍖 Рекомендована порція: {db.calculate_daily_food_amount(last)} г/день."
 
@@ -503,6 +493,164 @@ def api_test_telegram():
     except Exception as e:
         logger.error(f"Test telegram error: {e}")
         return jsonify({'message': f'❌ Помилка: {str(e)}'})
+
+
+# ========== НОВІ API МАРШРУТИ ==========
+
+# ----- Прогнози та тренди -----
+
+@app.route('/api/weight_trend')
+def api_weight_trend():
+    """Отримати тренд ваги та прогноз"""
+    try:
+        trend = db.get_weight_trend(30)
+        return jsonify(trend if trend else {'message': 'Недостатньо даних для прогнозу'})
+    except Exception as e:
+        logger.error(f"Weight trend error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/activity_trend')
+def api_activity_trend():
+    """Отримати тренд активності"""
+    try:
+        trend = db.get_activity_trend(30)
+        return jsonify(trend if trend else {'message': 'Недостатньо даних для аналізу'})
+    except Exception as e:
+        logger.error(f"Activity trend error: {e}")
+        return jsonify({'error': str(e)})
+
+
+# ----- Ветеринарний паспорт -----
+
+@app.route('/api/vaccinations', methods=['GET', 'POST'])
+def api_vaccinations():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_vaccination(
+                data['vaccine_name'],
+                data['vaccine_date'],
+                data.get('next_due'),
+                data.get('series'),
+                data.get('vet_name'),
+                data.get('clinic_name'),
+                data.get('notes')
+            )
+            return jsonify({'success': True})
+        else:
+            return jsonify(db.get_vaccinations())
+    except Exception as e:
+        logger.error(f"Vaccinations error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/parasite_treatments', methods=['GET', 'POST'])
+def api_parasite_treatments():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_parasite_treatment(
+                data['name'],
+                data['treatment_date'],
+                data.get('next_due'),
+                data.get('parasite_type'),
+                data.get('medication'),
+                data.get('dosage'),
+                data.get('notes')
+            )
+            return jsonify({'success': True})
+        else:
+            return jsonify(db.get_parasite_treatments())
+    except Exception as e:
+        logger.error(f"Parasite treatments error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/dental_history', methods=['GET', 'POST'])
+def api_dental_history():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_dental_procedure(
+                data['procedure_date'],
+                data['procedure_type'],
+                data.get('vet_name'),
+                data.get('notes'),
+                data.get('next_due')
+            )
+            return jsonify({'success': True})
+        else:
+            return jsonify(db.get_dental_history())
+    except Exception as e:
+        logger.error(f"Dental history error: {e}")
+        return jsonify({'error': str(e)})
+
+
+# ----- Розумні нагадування -----
+
+@app.route('/api/smart_reminders')
+def api_smart_reminders():
+    """Отримати список розумних нагадувань"""
+    try:
+        reminders = db.get_smart_reminders()
+        triggered = db.check_smart_reminders()
+        return jsonify({'reminders': reminders, 'triggered': triggered})
+    except Exception as e:
+        logger.error(f"Smart reminders error: {e}")
+        return jsonify({'reminders': [], 'triggered': []})
+
+
+@app.route('/api/check_smart_reminders', methods=['POST'])
+def api_check_smart_reminders():
+    """Перевірити розумні нагадування"""
+    try:
+        triggered = db.check_smart_reminders()
+        # Відправляємо сповіщення всій сім'ї
+        for r in triggered:
+            msg = f"🔔 <b>{r['title']}</b>\n\n{r['description']}"
+            db.notify_family(msg)
+        return jsonify({'triggered': [dict(r) for r in triggered]})
+    except Exception as e:
+        logger.error(f"Check smart reminders error: {e}")
+        return jsonify({'error': str(e)})
+
+
+# ----- Сімейний доступ -----
+
+@app.route('/api/family_members', methods=['GET', 'POST', 'DELETE'])
+def api_family_members():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_family_member(
+                data['name'],
+                data.get('role', 'member'),
+                data.get('chat_id'),
+                data.get('notify', True)
+            )
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            data = request.get_json()
+            db.delete_family_member(data['id'])
+            return jsonify({'success': True})
+        else:
+            return jsonify(db.get_family_members())
+    except Exception as e:
+        logger.error(f"Family members error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/notify_family', methods=['POST'])
+def api_notify_family():
+    """Надіслати сповіщення всій сім'ї"""
+    try:
+        data = request.get_json()
+        notified = db.notify_family(data['message'])
+        return jsonify({'notified': notified})
+    except Exception as e:
+        logger.error(f"Notify family error: {e}")
+        return jsonify({'error': str(e)})
 
 
 def run_web():

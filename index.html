@@ -255,6 +255,12 @@
             color: #333;
         }
 
+        .btn-small {
+            width: auto;
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+
         .events-feed {
             max-height: 500px;
             overflow-y: auto;
@@ -352,6 +358,8 @@
             padding: 24px;
             width: 100%;
             max-width: 320px;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .modal-content h3 {
@@ -432,6 +440,15 @@
             text-align: center;
             padding: 40px;
             color: #888;
+        }
+
+        .trend-up { color: #e74c3c; }
+        .trend-down { color: #2ecc71; }
+        .trend-stable { color: #3498db; }
+
+        .reminder-triggered {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
         }
 
         @media (min-width: 768px) {
@@ -541,6 +558,9 @@
         <button class="tab" data-tab="training">🏋️ Тренування</button>
         <button class="tab" data-tab="mental">🧠 Розвиток</button>
         <button class="tab" data-tab="health">💊 Здоров'я</button>
+        <button class="tab" data-tab="vet">🏥 Ветпаспорт</button>
+        <button class="tab" data-tab="trends">📈 Тренди</button>
+        <button class="tab" data-tab="family">👨‍👩‍👧‍👦 Сім'я</button>
         <button class="tab" data-tab="report">📈 Звіт</button>
         <button class="tab" data-tab="settings">⚙️ Налаштування</button>
     </div>
@@ -615,6 +635,57 @@
         </div>
     </div>
 
+    <!-- Нова вкладка: Ветеринарний паспорт -->
+    <div id="tab-vet" class="tab-content">
+        <div class="card">
+            <div class="card-title">💉 Щеплення</div>
+            <div id="vaccinationsList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showVaccinationModal()">➕ Додати щеплення</button>
+        </div>
+        <div class="card">
+            <div class="card-title">🪱 Обробка від паразитів</div>
+            <div id="parasiteList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showParasiteModal()">➕ Додати обробку</button>
+        </div>
+        <div class="card">
+            <div class="card-title">🦷 Стоматологія</div>
+            <div id="dentalList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showDentalModal()">➕ Додати процедуру</button>
+        </div>
+    </div>
+
+    <!-- Нова вкладка: Тренди та прогнози -->
+    <div id="tab-trends" class="tab-content">
+        <div class="card">
+            <div class="card-title">📈 Прогноз ваги</div>
+            <div id="weightTrendInfo"></div>
+            <canvas id="weightTrendChart" style="max-height: 200px;"></canvas>
+        </div>
+        <div class="card">
+            <div class="card-title">📊 Аналіз активності</div>
+            <div id="activityTrendInfo"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">🔔 Розумні нагадування</div>
+            <div id="smartRemindersList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="checkSmartReminders()">🔍 Перевірити нагадування</button>
+        </div>
+    </div>
+
+    <!-- Нова вкладка: Сімейний доступ -->
+    <div id="tab-family" class="tab-content">
+        <div class="card">
+            <div class="card-title">👨‍👩‍👧‍👦 Члени сім'ї</div>
+            <div id="familyMembersList"></div>
+            <button class="btn" style="margin-top: 16px;" onclick="showFamilyModal()">➕ Додати члена сім'ї</button>
+        </div>
+        <div class="card">
+            <div class="card-title">📢 Сповіщення</div>
+            <textarea id="notificationMessage" rows="3" placeholder="Введіть повідомлення для сім'ї..." style="width:100%; padding:12px; border-radius:16px; border:1px solid #ddd; margin-bottom:12px;"></textarea>
+            <button class="btn" onclick="sendFamilyNotification()">📨 Надіслати всім</button>
+        </div>
+    </div>
+
     <div id="tab-report" class="tab-content">
         <div class="card">
             <div class="card-title">📊 Повний звіт</div>
@@ -676,7 +747,7 @@
 
     <div id="toast" class="toast">✅ Готово!</div>
 
-    <!-- Модальні вікна -->
+    <!-- Існуючі модальні вікна -->
     <div id="weightModal" class="modal">
         <div class="modal-content">
             <h3>⚖️ Додати вагу</h3>
@@ -763,7 +834,7 @@
     </div>
 
     <script>
-        let timelineChart, weeklyChart, weightChart, trainingChart, mentalChart, pottyChart;
+        let timelineChart, weeklyChart, weightChart, trainingChart, mentalChart, pottyChart, weightTrendChart;
         let walkActive = false, sleepActive = false;
         let currentDayOffset = 0;
 
@@ -801,21 +872,19 @@
         }
 
         function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
+            const modal = document.getElementById(id);
+            if (modal) modal.style.display = 'none';
         }
 
-        // ВИПРАВЛЕНА ФУНКЦІЯ switchTab
         function switchTab(tabName, btnElement) {
-            // Приховуємо всі вкладки
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
+            const targetTab = document.getElementById(`tab-${tabName}`);
+            if (targetTab) targetTab.classList.add('active');
 
-            // Оновлюємо активний стан кнопок
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
             if (btnElement) {
                 btnElement.classList.add('active');
             } else {
-                // Якщо викликано без кнопки, знаходимо за даними
                 const btn = document.querySelector(`.tab[data-tab="${tabName}"]`);
                 if (btn) btn.classList.add('active');
             }
@@ -828,9 +897,11 @@
             if (tabName === 'report') loadReport();
             if (tabName === 'feed') loadEventsFeed();
             if (tabName === 'settings') loadSettings();
+            if (tabName === 'vet') loadVetData();
+            if (tabName === 'trends') { loadWeightTrend(); loadActivityTrend(); loadSmartReminders(); }
+            if (tabName === 'family') loadFamilyMembers();
         }
 
-        // Ініціалізація обробників для табів
         function initTabs() {
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(tab => {
@@ -840,6 +911,8 @@
                 });
             });
         }
+
+        // ========== ІСНУЮЧІ ФУНКЦІЇ ==========
 
         async function loadStats() {
             try {
@@ -869,10 +942,7 @@
                 const res = await fetch(`/api/timeline?offset=${currentDayOffset}`);
                 const data = await res.json();
 
-                const sleepPoints = [];
-                const walkPoints = [];
-                const feedPoints = [];
-                const toiletPoints = [];
+                const sleepPoints = [], walkPoints = [], feedPoints = [], toiletPoints = [];
 
                 data.events.forEach(e => {
                     const hour = new Date(e.start_time * 1000).getHours();
@@ -915,9 +985,7 @@
                                     label: (context) => {
                                         const point = context.raw;
                                         let label = context.dataset.label;
-                                        if (point.duration) {
-                                            label += `: ${formatDuration(point.duration)}`;
-                                        }
+                                        if (point.duration) label += `: ${formatDuration(point.duration)}`;
                                         return label;
                                     }
                                 }
@@ -932,35 +1000,19 @@
             try {
                 const res = await fetch('/api/events');
                 const events = await res.json();
-
                 document.getElementById('eventsFeed').innerHTML = events.map(e => {
                     let title = eventNames[e.type] || e.type;
                     let durationText = '';
-
-                    if (e.type === 'toilet' && e.subtype) {
-                        title = toiletTypes[e.subtype] || e.subtype;
-                    }
-                    if (e.type === 'behavior' && e.subtype) {
-                        title = `Поведінка: ${e.subtype}`;
-                    }
-                    if (e.value && e.value > 0) {
-                        durationText = `⏱ ${formatDuration(e.value)}`;
-                    }
-
+                    if (e.type === 'toilet' && e.subtype) title = toiletTypes[e.subtype] || e.subtype;
+                    if (e.type === 'behavior' && e.subtype) title = `Поведінка: ${e.subtype}`;
+                    if (e.value && e.value > 0) durationText = `⏱ ${formatDuration(e.value)}`;
                     return `
                         <div class="event-card">
-                            <div class="event-time-large">
-                                <div class="event-hour">${e.time_hour}</div>
-                                <div class="event-minute">${e.time_str}</div>
-                            </div>
+                            <div class="event-time-large"><div class="event-hour">${e.time_hour}</div><div class="event-minute">${e.time_str}</div></div>
                             <div class="event-icon-large">${eventIcons[e.type] || '📌'}</div>
-                            <div class="event-details">
-                                <div class="event-title-large">${title}</div>
-                                ${durationText ? `<div class="event-duration">${durationText}</div>` : ''}
-                            </div>
+                            <div class="event-details"><div class="event-title-large">${title}</div>${durationText ? `<div class="event-duration">${durationText}</div>` : ''}</div>
                             <button class="delete-event-btn" onclick="deleteEvent(${e.id})">🗑</button>
-                        </div>
-                    `;
+                        </div>`;
                 }).join('') || '<div class="empty-state">📭 Немає подій</div>';
             } catch(e) { console.error('loadEventsFeed error:', e); }
         }
@@ -969,17 +1021,13 @@
             try {
                 const res = await fetch('/api/weekly');
                 const d = await res.json();
-
                 if (weeklyChart) weeklyChart.destroy();
                 weeklyChart = new Chart(document.getElementById('weeklyChart'), {
                     type: 'bar',
-                    data: {
-                        labels: d.dates,
-                        datasets: [
-                            { label: 'Прогулянки (хв)', data: d.walk, backgroundColor: '#3498db', borderRadius: 8 },
-                            { label: 'Сон (год)', data: d.sleep, backgroundColor: '#9b59b6', borderRadius: 8 }
-                        ]
-                    },
+                    data: { labels: d.dates, datasets: [
+                        { label: 'Прогулянки (хв)', data: d.walk, backgroundColor: '#3498db', borderRadius: 8 },
+                        { label: 'Сон (год)', data: d.sleep, backgroundColor: '#9b59b6', borderRadius: 8 }
+                    ]},
                     options: { responsive: true, maintainAspectRatio: true }
                 });
             } catch(e) { console.error('loadWeekly error:', e); }
@@ -989,28 +1037,21 @@
             if (confirm('Видалити подію?')) {
                 await fetch('/api/delete_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
                 showToast('🗑 Видалено');
-                loadEventsFeed();
-                loadStats();
-                loadTimeline();
+                loadEventsFeed(); loadStats(); loadTimeline();
             }
         }
 
         async function quickAdd(type) {
             await fetch('/api/add_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type }) });
             showToast('✅ Записано');
-            loadStats();
-            loadEventsFeed();
-            loadTimeline();
+            loadStats(); loadEventsFeed(); loadTimeline();
         }
 
         async function toggleWalk() {
             try {
-                const res = await fetch('/api/walk_status');
-                const status = await res.json();
-
+                const status = await fetch('/api/walk_status').then(r => r.json());
                 if (status.active) {
-                    const r = await fetch('/api/stop_walk', { method: 'POST' });
-                    const result = await r.json();
+                    const result = await fetch('/api/stop_walk', { method: 'POST' }).then(r => r.json());
                     showToast(`✅ Прогулянка завершена! ${formatDuration(result.duration)}`);
                     document.getElementById('walkIcon').innerHTML = '🚶';
                     document.getElementById('walkText').innerHTML = 'Прогулянка';
@@ -1020,20 +1061,15 @@
                     document.getElementById('walkIcon').innerHTML = '⏹️';
                     document.getElementById('walkText').innerHTML = 'Зупинити';
                 }
-                loadStats();
-                loadEventsFeed();
-                loadTimeline();
+                loadStats(); loadEventsFeed(); loadTimeline();
             } catch(e) { console.error('toggleWalk error:', e); }
         }
 
         async function toggleSleep() {
             try {
-                const res = await fetch('/api/sleep_status');
-                const status = await res.json();
-
+                const status = await fetch('/api/sleep_status').then(r => r.json());
                 if (status.active) {
-                    const r = await fetch('/api/stop_sleep', { method: 'POST' });
-                    const result = await r.json();
+                    const result = await fetch('/api/stop_sleep', { method: 'POST' }).then(r => r.json());
                     showToast(`✅ Сон завершено! ${formatDuration(result.duration)}`);
                     document.getElementById('sleepIcon').innerHTML = '😴';
                     document.getElementById('sleepText').innerHTML = 'Сон';
@@ -1043,9 +1079,7 @@
                     document.getElementById('sleepIcon').innerHTML = '⏹️';
                     document.getElementById('sleepText').innerHTML = 'Зупинити';
                 }
-                loadStats();
-                loadEventsFeed();
-                loadTimeline();
+                loadStats(); loadEventsFeed(); loadTimeline();
             } catch(e) { console.error('toggleSleep error:', e); }
         }
 
@@ -1053,7 +1087,6 @@
             try {
                 const res = await fetch('/api/weight');
                 const d = await res.json();
-
                 if (weightChart) weightChart.destroy();
                 if (d.dates.length > 0) {
                     weightChart = new Chart(document.getElementById('weightChart'), {
@@ -1062,11 +1095,7 @@
                         options: { responsive: true, maintainAspectRatio: true }
                     });
                 }
-
-                document.getElementById('weightList').innerHTML = d.history.map(w => `
-                    <div class="event-card"><div class="event-icon-large">⚖️</div><div class="event-details"><div class="event-title-large">${w.weight} кг</div><div class="event-subtitle">${w.date}</div></div></div>
-                `).join('') || '<div class="empty-state">📭 Немає даних</div>';
-
+                document.getElementById('weightList').innerHTML = d.history.map(w => `<div class="event-card"><div class="event-icon-large">⚖️</div><div class="event-details"><div class="event-title-large">${w.weight} кг</div><div class="event-subtitle">${w.date}</div></div></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
                 document.getElementById('foodInfo').innerHTML = `🐾 Рекомендована порція: <strong>${d.daily_food}</strong> г/день<br><small>(по ${Math.round(d.daily_food/4)} г на годування)</small>`;
             } catch(e) { console.error('loadWeightData error:', e); }
         }
@@ -1075,7 +1104,6 @@
             try {
                 const res = await fetch('/api/training');
                 const d = await res.json();
-
                 if (trainingChart) trainingChart.destroy();
                 if (d.commands.length > 0) {
                     trainingChart = new Chart(document.getElementById('trainingChart'), {
@@ -1084,10 +1112,7 @@
                         options: { responsive: true, maintainAspectRatio: true, scales: { y: { max: 5 } } }
                     });
                 }
-
-                document.getElementById('trainingList').innerHTML = d.history.map(t => `
-                    <div class="event-card"><div class="event-icon-large">🏋️</div><div class="event-details"><div class="event-title-large">${t.command}</div><div class="event-subtitle">${t.duration} хв, успішність ${t.success_rate}/5</div><div class="event-duration">${t.date}</div></div></div>
-                `).join('') || '<div class="empty-state">📭 Немає даних</div>';
+                document.getElementById('trainingList').innerHTML = d.history.map(t => `<div class="event-card"><div class="event-icon-large">🏋️</div><div class="event-details"><div class="event-title-large">${t.command}</div><div class="event-subtitle">${t.duration} хв, успішність ${t.success_rate}/5</div><div class="event-duration">${t.date}</div></div></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
             } catch(e) { console.error('loadTrainingData error:', e); }
         }
 
@@ -1095,14 +1120,12 @@
             try {
                 const res = await fetch('/api/mental');
                 const d = await res.json();
-
                 if (mentalChart) mentalChart.destroy();
                 mentalChart = new Chart(document.getElementById('mentalChart'), {
                     type: 'bar',
                     data: { labels: d.dates, datasets: [{ label: 'Ментальна активність (хв)', data: d.durations, backgroundColor: '#e67e22', borderRadius: 8 }] },
                     options: { responsive: true, maintainAspectRatio: true }
                 });
-
                 if (pottyChart) pottyChart.destroy();
                 if (d.potty_types.length > 0) {
                     pottyChart = new Chart(document.getElementById('pottyChart'), {
@@ -1111,11 +1134,8 @@
                         options: { responsive: true, maintainAspectRatio: true }
                     });
                 }
-
                 const avg = d.avg_mental || 0;
-                document.getElementById('mentalAdvice').innerHTML = avg < 15 ?
-                    '⚠️ Низьке ментальне навантаження! Рекомендується 15+ хв інтелектуальних ігор щодня.' :
-                    '✅ Чудовий баланс! Продовжуйте в тому ж дусі.';
+                document.getElementById('mentalAdvice').innerHTML = avg < 15 ? '⚠️ Низьке ментальне навантаження! Рекомендується 15+ хв інтелектуальних ігор щодня.' : '✅ Чудовий баланс! Продовжуйте в тому ж дусі.';
             } catch(e) { console.error('loadMentalData error:', e); }
         }
 
@@ -1123,19 +1143,9 @@
             try {
                 const res = await fetch('/api/health');
                 const d = await res.json();
-
-                document.getElementById('remindersList').innerHTML = d.reminders.length > 0 ?
-                    d.reminders.map(m => `
-                        <div class="event-card"><div class="event-icon-large">💊</div><div class="event-details"><div class="event-title-large">${m.title}</div><div class="event-subtitle">⏰ ${m.next_due_str}</div></div><button onclick="completeReminder(${m.id})" style="background:#2ecc71; border:none; border-radius:20px; padding:6px 12px; color:white;">✅ Виконано</button></div>
-                    `).join('') : '<div class="empty-state">📭 Немає активних нагадувань</div>';
-
-                document.getElementById('symptomsList').innerHTML = d.symptoms.map(s => `
-                    <div class="event-card"><div class="event-icon-large">🌡️</div><div class="event-details"><div class="event-title-large">${s.date}</div><div class="event-subtitle">${s.temperature ? s.temperature + '°C | ' : ''}Апетит: ${s.appetite}/5 | Настрій: ${s.mood}</div>${s.note ? `<div class="event-duration">📝 ${s.note}</div>` : ''}</div></div>
-                `).join('') || '<div class="empty-state">📭 Немає записів</div>';
-
-                document.getElementById('allergiesList').innerHTML = d.allergies.map(a => `
-                    <div class="event-card"><div class="event-icon-large">⚠️</div><div class="event-details"><div class="event-title-large">${a.product}</div><div class="event-subtitle">Реакція: ${a.reaction || 'не вказано'} | Ступінь: ${a.severity}/5</div></div><button class="delete-event-btn" onclick="deleteAllergy(${a.id})">🗑</button></div>
-                `).join('') || '<div class="empty-state">📭 Немає алергій</div>';
+                document.getElementById('remindersList').innerHTML = d.reminders.length > 0 ? d.reminders.map(m => `<div class="event-card"><div class="event-icon-large">💊</div><div class="event-details"><div class="event-title-large">${m.title}</div><div class="event-subtitle">⏰ ${m.next_due_str}</div></div><button onclick="completeReminder(${m.id})" style="background:#2ecc71; border:none; border-radius:20px; padding:6px 12px; color:white;">✅ Виконано</button></div>`).join('') : '<div class="empty-state">📭 Немає активних нагадувань</div>';
+                document.getElementById('symptomsList').innerHTML = d.symptoms.map(s => `<div class="event-card"><div class="event-icon-large">🌡️</div><div class="event-details"><div class="event-title-large">${s.date}</div><div class="event-subtitle">${s.temperature ? s.temperature + '°C | ' : ''}Апетит: ${s.appetite}/5 | Настрій: ${s.mood}</div>${s.note ? `<div class="event-duration">📝 ${s.note}</div>` : ''}</div></div>`).join('') || '<div class="empty-state">📭 Немає записів</div>';
+                document.getElementById('allergiesList').innerHTML = d.allergies.map(a => `<div class="event-card"><div class="event-icon-large">⚠️</div><div class="event-details"><div class="event-title-large">${a.product}</div><div class="event-subtitle">Реакція: ${a.reaction || 'не вказано'} | Ступінь: ${a.severity}/5</div></div><button class="delete-event-btn" onclick="deleteAllergy(${a.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає алергій</div>';
             } catch(e) { console.error('loadHealthData error:', e); }
         }
 
@@ -1143,15 +1153,7 @@
             try {
                 const res = await fetch('/api/report');
                 const d = await res.json();
-                document.getElementById('reportContent').innerHTML = `
-                    <p>📊 <strong>Звіт за ${d.days} днів</strong></p>
-                    <p>🍖 Годувань: ${d.feed}</p>
-                    <p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p>
-                    <p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p>
-                    <p>🚽 Туалет: ${d.toilet}</p>
-                    <p>🧠 Ментальне: ${d.mental_minutes} хв</p>
-                    <p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>
-                `;
+                document.getElementById('reportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p><p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p><p>🚽 Туалет: ${d.toilet}</p><p>🧠 Ментальне: ${d.mental_minutes} хв</p><p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>`;
             } catch(e) { console.error('loadReport error:', e); }
         }
 
@@ -1191,32 +1193,16 @@
                 telegram_bot_token: document.getElementById('settingTelegramToken').value,
                 telegram_chat_id: document.getElementById('settingTelegramChatId').value
             };
-
-            await fetch('/api/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            });
-
+            await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
             showToast('⚙️ Налаштування збережено');
-            loadStats();
-            loadInsight();
+            loadStats(); loadInsight();
         }
 
         async function testTelegram() {
             const botToken = document.getElementById('settingTelegramToken').value;
             const chatId = document.getElementById('settingTelegramChatId').value;
-
-            if (!botToken || !chatId) {
-                showToast('❌ Введіть Bot Token та Chat ID');
-                return;
-            }
-
-            const res = await fetch('/api/test_telegram', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bot_token: botToken, chat_id: chatId })
-            });
+            if (!botToken || !chatId) { showToast('❌ Введіть Bot Token та Chat ID'); return; }
+            const res = await fetch('/api/test_telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bot_token: botToken, chat_id: chatId }) });
             const d = await res.json();
             showToast(d.message);
         }
@@ -1227,8 +1213,7 @@
                 await fetch('/api/add_weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weight: parseFloat(w) }) });
                 closeModal('weightModal');
                 showToast('⚖️ Збережено');
-                loadWeightData();
-                loadStats();
+                loadWeightData(); loadStats();
                 document.getElementById('weightInput').value = '';
             }
         }
@@ -1330,19 +1315,308 @@
         async function checkActiveStates() {
             try {
                 const walk = await fetch('/api/walk_status').then(r => r.json());
-                if (walk.active) {
-                    document.getElementById('walkIcon').innerHTML = '⏹️';
-                    document.getElementById('walkText').innerHTML = 'Зупинити';
-                }
+                if (walk.active) { document.getElementById('walkIcon').innerHTML = '⏹️'; document.getElementById('walkText').innerHTML = 'Зупинити'; }
                 const sleep = await fetch('/api/sleep_status').then(r => r.json());
-                if (sleep.active) {
-                    document.getElementById('sleepIcon').innerHTML = '⏹️';
-                    document.getElementById('sleepText').innerHTML = 'Зупинити';
-                }
+                if (sleep.active) { document.getElementById('sleepIcon').innerHTML = '⏹️'; document.getElementById('sleepText').innerHTML = 'Зупинити'; }
             } catch(e) { console.error('checkActiveStates error:', e); }
         }
 
-        // Ініціалізація після завантаження сторінки
+        // ========== НОВІ ФУНКЦІЇ ==========
+
+        // ----- Ветеринарний паспорт -----
+        async function loadVetData() {
+            await loadVaccinations();
+            await loadParasiteTreatments();
+            await loadDentalHistory();
+        }
+
+        async function loadVaccinations() {
+            try {
+                const res = await fetch('/api/vaccinations');
+                const data = await res.json();
+                document.getElementById('vaccinationsList').innerHTML = Array.isArray(data) && data.length ? data.map(v => `
+                    <div class="event-card">
+                        <div class="event-icon-large">💉</div>
+                        <div class="event-details">
+                            <div class="event-title-large">${v.vaccine_name}</div>
+                            <div class="event-subtitle">Дата: ${v.vaccine_date} | Лікар: ${v.vet_name || '—'}</div>
+                            ${v.next_due ? `<div class="event-duration">⏰ Наступне: ${v.next_due}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('') : '<div class="empty-state">📭 Немає записів про щеплення</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadParasiteTreatments() {
+            try {
+                const res = await fetch('/api/parasite_treatments');
+                const data = await res.json();
+                document.getElementById('parasiteList').innerHTML = Array.isArray(data) && data.length ? data.map(p => `
+                    <div class="event-card">
+                        <div class="event-icon-large">🪱</div>
+                        <div class="event-details">
+                            <div class="event-title-large">${p.treatment_name}</div>
+                            <div class="event-subtitle">Дата: ${p.treatment_date} | Препарат: ${p.medication_name || '—'}</div>
+                            ${p.next_due ? `<div class="event-duration">⏰ Наступна: ${p.next_due}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('') : '<div class="empty-state">📭 Немає записів про обробку</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadDentalHistory() {
+            try {
+                const res = await fetch('/api/dental_history');
+                const data = await res.json();
+                document.getElementById('dentalList').innerHTML = Array.isArray(data) && data.length ? data.map(d => `
+                    <div class="event-card">
+                        <div class="event-icon-large">🦷</div>
+                        <div class="event-details">
+                            <div class="event-title-large">${d.procedure_type}</div>
+                            <div class="event-subtitle">Дата: ${d.procedure_date} | Лікар: ${d.vet_name || '—'}</div>
+                            ${d.notes ? `<div class="event-duration">📝 ${d.notes}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('') : '<div class="empty-state">📭 Немає записів</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        function showVaccinationModal() {
+            const modalHtml = `
+                <div id="vetModal" class="modal" style="display:flex">
+                    <div class="modal-content">
+                        <h3>💉 Додати щеплення</h3>
+                        <input type="text" id="vaccineName" placeholder="Назва щеплення">
+                        <input type="date" id="vaccineDate">
+                        <input type="date" id="vaccineNextDue" placeholder="Наступне (опціонально)">
+                        <input type="text" id="vaccineSeries" placeholder="Серія">
+                        <input type="text" id="vetName" placeholder="Лікар">
+                        <input type="text" id="clinicName" placeholder="Клініка">
+                        <textarea id="vaccineNotes" rows="2" placeholder="Нотатки"></textarea>
+                        <button class="btn" onclick="saveVaccination()">💾 Зберегти</button>
+                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('vetModal')">Скасувати</button>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        async function saveVaccination() {
+            const data = {
+                vaccine_name: document.getElementById('vaccineName').value,
+                vaccine_date: document.getElementById('vaccineDate').value,
+                next_due: document.getElementById('vaccineNextDue').value,
+                series: document.getElementById('vaccineSeries').value,
+                vet_name: document.getElementById('vetName').value,
+                clinic_name: document.getElementById('clinicName').value,
+                notes: document.getElementById('vaccineNotes').value
+            };
+            await fetch('/api/vaccinations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('vetModal');
+            showToast('💉 Щеплення додано');
+            loadVaccinations();
+        }
+
+        function showParasiteModal() {
+            const modalHtml = `
+                <div id="parasiteModalWindow" class="modal" style="display:flex">
+                    <div class="modal-content">
+                        <h3>🪱 Додати обробку</h3>
+                        <input type="text" id="treatmentName" placeholder="Назва обробки">
+                        <input type="date" id="treatmentDate">
+                        <input type="date" id="treatmentNextDue" placeholder="Наступна (опціонально)">
+                        <input type="text" id="parasiteType" placeholder="Тип паразитів">
+                        <input type="text" id="medicationName" placeholder="Препарат">
+                        <input type="text" id="dosage" placeholder="Дозування">
+                        <textarea id="treatmentNotes" rows="2" placeholder="Нотатки"></textarea>
+                        <button class="btn" onclick="saveParasiteTreatment()">💾 Зберегти</button>
+                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('parasiteModalWindow')">Скасувати</button>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        async function saveParasiteTreatment() {
+            const data = {
+                name: document.getElementById('treatmentName').value,
+                treatment_date: document.getElementById('treatmentDate').value,
+                next_due: document.getElementById('treatmentNextDue').value,
+                parasite_type: document.getElementById('parasiteType').value,
+                medication: document.getElementById('medicationName').value,
+                dosage: document.getElementById('dosage').value,
+                notes: document.getElementById('treatmentNotes').value
+            };
+            await fetch('/api/parasite_treatments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('parasiteModalWindow');
+            showToast('🪱 Обробку додано');
+            loadParasiteTreatments();
+        }
+
+        function showDentalModal() {
+            const modalHtml = `
+                <div id="dentalModalWindow" class="modal" style="display:flex">
+                    <div class="modal-content">
+                        <h3>🦷 Додати процедуру</h3>
+                        <input type="date" id="dentalDate">
+                        <input type="text" id="dentalType" placeholder="Тип процедури">
+                        <input type="text" id="dentalVet" placeholder="Лікар">
+                        <textarea id="dentalNotes" rows="2" placeholder="Нотатки"></textarea>
+                        <input type="date" id="dentalNextDue" placeholder="Наступна (опціонально)">
+                        <button class="btn" onclick="saveDentalProcedure()">💾 Зберегти</button>
+                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('dentalModalWindow')">Скасувати</button>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        async function saveDentalProcedure() {
+            const data = {
+                procedure_date: document.getElementById('dentalDate').value,
+                procedure_type: document.getElementById('dentalType').value,
+                vet_name: document.getElementById('dentalVet').value,
+                notes: document.getElementById('dentalNotes').value,
+                next_due: document.getElementById('dentalNextDue').value
+            };
+            await fetch('/api/dental_history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('dentalModalWindow');
+            showToast('🦷 Процедуру додано');
+            loadDentalHistory();
+        }
+
+        // ----- Прогнози та тренди -----
+        async function loadWeightTrend() {
+            try {
+                const res = await fetch('/api/weight_trend');
+                const data = await res.json();
+                if (data.error || !data.current_weight) {
+                    document.getElementById('weightTrendInfo').innerHTML = '<div class="empty-state">📭 Недостатньо даних для прогнозу</div>';
+                    return;
+                }
+                const trendClass = data.trend === 'up' ? 'trend-up' : (data.trend === 'down' ? 'trend-down' : 'trend-stable');
+                const trendSymbol = data.trend === 'up' ? '📈' : (data.trend === 'down' ? '📉' : '➡️');
+                document.getElementById('weightTrendInfo').innerHTML = `
+                    <p><strong>Поточна вага:</strong> ${data.current_weight} кг</p>
+                    <p><strong>Тренд:</strong> <span class="${trendClass}">${trendSymbol} ${data.change_per_week} кг/тиждень</span></p>
+                    <p><strong>Прогноз на наступний тиждень:</strong> ${data.prediction_next_week} кг</p>
+                    <p><strong>Точність прогнозу:</strong> ${data.confidence}%</p>
+                `;
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadActivityTrend() {
+            try {
+                const res = await fetch('/api/activity_trend');
+                const data = await res.json();
+                if (data.error || !data.avg_walk_minutes) {
+                    document.getElementById('activityTrendInfo').innerHTML = '<div class="empty-state">📭 Недостатньо даних для аналізу</div>';
+                    return;
+                }
+                const trendClass = data.walk_trend === 'up' ? 'trend-up' : (data.walk_trend === 'down' ? 'trend-down' : 'trend-stable');
+                const trendSymbol = data.walk_trend === 'up' ? '📈' : (data.walk_trend === 'down' ? '📉' : '➡️');
+                document.getElementById('activityTrendInfo').innerHTML = `
+                    <p><strong>Середня прогулянка:</strong> ${data.avg_walk_minutes} хв/день</p>
+                    <p><strong>Середній сон:</strong> ${data.avg_sleep_hours} год/день</p>
+                    <p><strong>Тренд активності:</strong> <span class="${trendClass}">${trendSymbol} ${data.walk_change_percent}% за тиждень</span></p>
+                    <p><strong>Рекомендація:</strong> ${data.recommendation}</p>
+                `;
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadSmartReminders() {
+            try {
+                const res = await fetch('/api/smart_reminders');
+                const data = await res.json();
+                const reminders = data.reminders || [];
+                const triggered = data.triggered || [];
+                const triggeredIds = new Set(triggered.map(t => t.id));
+                document.getElementById('smartRemindersList').innerHTML = reminders.length ? reminders.map(r => `
+                    <div class="event-card ${triggeredIds.has(r.id) ? 'reminder-triggered' : ''}">
+                        <div class="event-icon-large">🔔</div>
+                        <div class="event-details">
+                            <div class="event-title-large">${r.title}</div>
+                            <div class="event-subtitle">${r.description}</div>
+                            ${triggeredIds.has(r.id) ? '<div class="event-duration">⚠️ ПОТРІБНА УВАГА!</div>' : ''}
+                        </div>
+                    </div>
+                `).join('') : '<div class="empty-state">📭 Немає розумних нагадувань</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function checkSmartReminders() {
+            showToast('🔍 Перевірка нагадувань...');
+            await fetch('/api/check_smart_reminders', { method: 'POST' });
+            showToast('✅ Нагадування перевірено');
+            loadSmartReminders();
+        }
+
+        // ----- Сімейний доступ -----
+        async function loadFamilyMembers() {
+            try {
+                const res = await fetch('/api/family_members');
+                const data = await res.json();
+                document.getElementById('familyMembersList').innerHTML = Array.isArray(data) && data.length ? data.map(m => `
+                    <div class="event-card">
+                        <div class="event-icon-large">${m.role === 'admin' ? '👑' : '👤'}</div>
+                        <div class="event-details">
+                            <div class="event-title-large">${m.name}</div>
+                            <div class="event-subtitle">Роль: ${m.role} | Сповіщення: ${m.notify_enabled ? '✅ увімкнено' : '❌ вимкнено'}</div>
+                            ${m.chat_id ? `<div class="event-duration">🆔 Chat ID: ${m.chat_id}</div>` : ''}
+                        </div>
+                        <button class="delete-event-btn" onclick="deleteFamilyMember(${m.id})">🗑</button>
+                    </div>
+                `).join('') : '<div class="empty-state">👨‍👩‍👧‍👦 Немає доданих членів сім\'ї</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        function showFamilyModal() {
+            const modalHtml = `
+                <div id="familyModal" class="modal" style="display:flex">
+                    <div class="modal-content">
+                        <h3>👨‍👩‍👧‍👦 Додати члена сім'ї</h3>
+                        <input type="text" id="familyName" placeholder="Ім'я">
+                        <select id="familyRole">
+                            <option value="member">Член сім'ї</option>
+                            <option value="admin">Адміністратор</option>
+                        </select>
+                        <input type="text" id="familyChatId" placeholder="Telegram Chat ID (опціонально)">
+                        <label><input type="checkbox" id="familyNotify" checked> Отримувати сповіщення</label>
+                        <button class="btn" onclick="saveFamilyMember()">💾 Зберегти</button>
+                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('familyModal')">Скасувати</button>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        async function saveFamilyMember() {
+            const data = {
+                name: document.getElementById('familyName').value,
+                role: document.getElementById('familyRole').value,
+                chat_id: document.getElementById('familyChatId').value || null,
+                notify: document.getElementById('familyNotify').checked
+            };
+            await fetch('/api/family_members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('familyModal');
+            showToast('👨‍👩‍👧‍👦 Члена сім\'ї додано');
+            loadFamilyMembers();
+        }
+
+        async function deleteFamilyMember(id) {
+            if (confirm('Видалити члена сім\'ї?')) {
+                await fetch('/api/family_members', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                showToast('🗑 Видалено');
+                loadFamilyMembers();
+            }
+        }
+
+        async function sendFamilyNotification() {
+            const message = document.getElementById('notificationMessage').value;
+            if (!message) { showToast('❌ Введіть повідомлення'); return; }
+            const res = await fetch('/api/notify_family', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
+            const data = await res.json();
+            showToast(`📨 Надіслано ${data.notified?.length || 0} отримувачам`);
+            document.getElementById('notificationMessage').value = '';
+        }
+
+        // Ініціалізація
         document.addEventListener('DOMContentLoaded', function() {
             initTabs();
             loadStats();
@@ -1358,7 +1632,6 @@
             checkActiveStates();
         });
 
-        // Оновлення статистики кожні 30 секунд
         setInterval(() => { loadStats(); loadInsight(); }, 30000);
     </script>
 </body>

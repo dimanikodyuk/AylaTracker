@@ -55,7 +55,7 @@ def init_db():
                 user_id INTEGER
             );
 
-            -- Активні сесії (перестворюємо з правильною структурою)
+            -- Активні сесії
             CREATE TABLE IF NOT EXISTS active_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_type TEXT NOT NULL,
@@ -192,6 +192,79 @@ def init_db():
                 value TEXT NOT NULL,
                 updated_at INTEGER DEFAULT (strftime('%s', 'now'))
             );
+
+            -- ========== НОВІ ТАБЛИЦІ ==========
+
+            -- Ветеринарний паспорт (щеплення)
+            CREATE TABLE IF NOT EXISTS vet_vaccinations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vaccine_name TEXT NOT NULL,
+                vaccine_date INTEGER NOT NULL,
+                vaccine_next_due INTEGER,
+                vaccine_series TEXT,
+                vet_name TEXT,
+                clinic_name TEXT,
+                notes TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            -- Обробка від паразитів
+            CREATE TABLE IF NOT EXISTS parasite_treatment (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                treatment_name TEXT NOT NULL,
+                treatment_date INTEGER NOT NULL,
+                next_due INTEGER,
+                parasite_type TEXT,
+                medication_name TEXT,
+                dosage TEXT,
+                notes TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            -- Стоматологія
+            CREATE TABLE IF NOT EXISTS dental_care (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                procedure_date INTEGER NOT NULL,
+                procedure_type TEXT NOT NULL,
+                vet_name TEXT,
+                notes TEXT,
+                next_due INTEGER,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            -- Члени сім'ї
+            CREATE TABLE IF NOT EXISTS family_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                role TEXT DEFAULT 'member',
+                chat_id INTEGER,
+                notify_enabled INTEGER DEFAULT 1,
+                added_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            -- Розумні нагадування (з умовами)
+            CREATE TABLE IF NOT EXISTS smart_reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                condition_type TEXT NOT NULL,
+                condition_value TEXT,
+                days_before INTEGER DEFAULT 0,
+                enabled INTEGER DEFAULT 1,
+                last_triggered INTEGER,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            -- Прогнози та тренди
+            CREATE TABLE IF NOT EXISTS predictions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prediction_date INTEGER NOT NULL,
+                prediction_type TEXT NOT NULL,
+                predicted_value REAL,
+                confidence REAL,
+                actual_value REAL,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
         ''')
 
         # Ініціалізація налаштувань
@@ -203,11 +276,26 @@ def init_db():
             "telegram_chat_id": "",
             "food_density_calories": "3800",
             "potty_reminder_minutes": "25",
-            "planned_meals": "4",  # Додано
-            "planned_sleep_hours": "20"  # Додано
+            "planned_meals": "4",
+            "planned_sleep_hours": "20"
         }
         for key, value in defaults.items():
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, value))
+
+        # Додаємо розумні нагадування за замовчуванням
+        smart_reminders_defaults = [
+            ("💉 Перевірка щеплень", "Час перевірити графік щеплень", "vaccination_due", "", 7, 1),
+            ("💊 Обробка від паразитів", "Заплануйте обробку від паразитів", "parasite_due", "", 7, 1),
+            ("🦷 Чистка зубів", "Час почистити зуби Айлі", "date_based", "", 0, 1),
+            ("⚖️ Контроль ваги", "Перевірте вагу Айли", "weight_check", "", 0, 1),
+            ("🏃 Активність", "Останнім часом мало прогулянок", "low_activity", "30", 0, 1),
+        ]
+
+        for sm in smart_reminders_defaults:
+            conn.execute('''
+                INSERT OR IGNORE INTO smart_reminders (title, description, condition_type, condition_value, days_before, enabled)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', sm)
 
         print("✅ База даних ініціалізована")
 
@@ -309,10 +397,16 @@ def stop_session(session_type):
 def get_today_stats():
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
-        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        walk = conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
-        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        sleep = conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
+        feed = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        walk = \
+        conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[
+            0] or 0
+        toilet = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        sleep = \
+        conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[
+            0] or 0
         return {
             'feed': feed,
             'walk_minutes': walk // 60,
@@ -331,7 +425,6 @@ def get_settings():
         for row in rows:
             settings[row['key']] = row['value']
 
-        # Значення за замовчуванням
         defaults = {
             'pet_name': 'Айла',
             'birth_date': '',
@@ -349,6 +442,7 @@ def get_settings():
                 settings[key] = default
 
         return settings
+
 
 def get_events_list(limit=50):
     with get_db() as conn:
@@ -532,6 +626,7 @@ def delete_allergy(allergy_id):
         conn.execute("DELETE FROM allergies WHERE id = ?", (allergy_id,))
         return True
 
+
 def add_user(chat_id, username=None, first_name=None, last_name=None):
     with get_db() as conn:
         now = int(time.time())
@@ -540,6 +635,7 @@ def add_user(chat_id, username=None, first_name=None, last_name=None):
             VALUES (?, ?, ?, ?, ?, 1)
         """, (chat_id, username, first_name, last_name, now))
         return True
+
 
 def get_events_for_day(start_timestamp, end_timestamp):
     """Отримання подій за конкретний день"""
@@ -551,6 +647,7 @@ def get_events_for_day(start_timestamp, end_timestamp):
             ORDER BY timestamp ASC
         """, (start_timestamp, end_timestamp)).fetchall()
         return [dict(e) for e in events]
+
 
 def is_user_allowed(chat_id):
     with get_db() as conn:
@@ -574,6 +671,7 @@ def get_due_reminders():
             reminders.append(rem)
         return reminders
 
+
 def get_weekly_chart_data():
     """Отримання даних для тижневого графіка"""
     start_time = int(time.time()) - 7 * 86400
@@ -590,7 +688,6 @@ def get_weekly_chart_data():
             GROUP BY date ORDER BY date
         """, (start_time,)).fetchall()
 
-        # Створюємо масив всіх днів тижня
         dates = []
         for i in range(7):
             d = datetime.now() - timedelta(days=6 - i)
@@ -637,3 +734,292 @@ def get_full_report(days=7):
             'training_count': training_count,
             'training_avg': round(training_avg, 1)
         }
+
+
+# ========== НОВІ ФУНКЦІЇ ==========
+
+# ----- Ветеринарний паспорт -----
+
+def add_vaccination(vaccine_name, vaccine_date, next_due=None, series=None, vet_name=None, clinic_name=None,
+                    notes=None):
+    """Додати щеплення"""
+    with get_db() as conn:
+        vaccine_ts = int(datetime.strptime(vaccine_date, '%Y-%m-%d').timestamp())
+        next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
+        conn.execute("""
+            INSERT INTO vet_vaccinations (vaccine_name, vaccine_date, vaccine_next_due, vaccine_series, vet_name, clinic_name, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (vaccine_name, vaccine_ts, next_due_ts, series, vet_name, clinic_name, notes))
+        return True
+
+
+def get_vaccinations():
+    """Отримати всі щеплення"""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT id, vaccine_name, 
+                   datetime(vaccine_date, 'unixepoch') as vaccine_date,
+                   datetime(vaccine_next_due, 'unixepoch') as next_due,
+                   vaccine_series, vet_name, clinic_name, notes
+            FROM vet_vaccinations ORDER BY vaccine_date DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_next_vaccination():
+    """Отримати наступне щеплення"""
+    with get_db() as conn:
+        now = int(time.time())
+        row = conn.execute("""
+            SELECT vaccine_name, datetime(vaccine_next_due, 'unixepoch') as next_due
+            FROM vet_vaccinations 
+            WHERE vaccine_next_due > ? 
+            ORDER BY vaccine_next_due ASC LIMIT 1
+        """, (now,)).fetchone()
+        return dict(row) if row else None
+
+
+def add_parasite_treatment(name, treatment_date, next_due=None, parasite_type=None, medication=None, dosage=None,
+                           notes=None):
+    """Додати обробку від паразитів"""
+    with get_db() as conn:
+        treatment_ts = int(datetime.strptime(treatment_date, '%Y-%m-%d').timestamp())
+        next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
+        conn.execute("""
+            INSERT INTO parasite_treatment (treatment_name, treatment_date, next_due, parasite_type, medication_name, dosage, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (name, treatment_ts, next_due_ts, parasite_type, medication, dosage, notes))
+        return True
+
+
+def get_parasite_treatments():
+    """Отримати всі обробки"""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT id, treatment_name,
+                   datetime(treatment_date, 'unixepoch') as treatment_date,
+                   datetime(next_due, 'unixepoch') as next_due,
+                   parasite_type, medication_name, dosage, notes
+            FROM parasite_treatment ORDER BY treatment_date DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ----- Прогнози та тренди -----
+
+def get_weight_trend(days=30):
+    """Отримати тренд ваги (лінійна регресія)"""
+    history = get_weight_history(days)
+    if len(history) < 3:
+        return None
+
+    n = len(history)
+    x = list(range(n))
+    y = [h['weight'] for h in history]
+
+    # Проста лінійна регресія
+    x_mean = sum(x) / n
+    y_mean = sum(y) / n
+
+    numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+    denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
+
+    if denominator == 0:
+        return None
+
+    slope = numerator / denominator
+    intercept = y_mean - slope * x_mean
+
+    # Прогноз на наступні 7 днів
+    prediction = slope * (n + 7) + intercept
+
+    return {
+        'current_weight': y[-1],
+        'trend': 'up' if slope > 0.05 else 'down' if slope < -0.05 else 'stable',
+        'change_per_week': round(slope * 7, 2),
+        'prediction_next_week': round(prediction, 1),
+        'confidence': min(95, max(50, int(100 - (1 / n) * 100)))
+    }
+
+
+def get_activity_trend(days=30):
+    """Отримати тренд активності"""
+    start_time = int(time.time()) - days * 86400
+    with get_db() as conn:
+        daily_activity = conn.execute("""
+            SELECT date(timestamp, 'unixepoch') as date, 
+                   COALESCE(SUM(CASE WHEN type='walk' THEN value/60 ELSE 0 END), 0) as walk_minutes,
+                   COALESCE(SUM(CASE WHEN type='sleep' THEN value/3600 ELSE 0 END), 0) as sleep_hours
+            FROM events 
+            WHERE timestamp >= ? 
+            GROUP BY date
+            ORDER BY date
+        """, (start_time,)).fetchall()
+
+        if len(daily_activity) < 5:
+            return None
+
+        walk_avg = sum(r['walk_minutes'] for r in daily_activity) / len(daily_activity)
+        sleep_avg = sum(r['sleep_hours'] for r in daily_activity) / len(daily_activity)
+
+        # Порівняння останнього тижня з попередніми
+        last_week = daily_activity[-7:] if len(daily_activity) >= 7 else daily_activity
+        prev_weeks = daily_activity[:-7] if len(daily_activity) > 7 else []
+
+        last_week_walk = sum(r['walk_minutes'] for r in last_week) / len(last_week)
+        prev_walk = sum(r['walk_minutes'] for r in prev_weeks) / len(prev_weeks) if prev_weeks else walk_avg
+
+        walk_change = ((last_week_walk - prev_walk) / prev_walk * 100) if prev_walk > 0 else 0
+
+        return {
+            'avg_walk_minutes': round(walk_avg, 1),
+            'avg_sleep_hours': round(sleep_avg, 1),
+            'walk_trend': 'up' if walk_change > 5 else 'down' if walk_change < -5 else 'stable',
+            'walk_change_percent': round(walk_change, 1),
+            'recommendation': 'Збільште активність' if walk_change < -10 else 'Чудова активність!' if walk_change > 5 else 'Норма'
+        }
+
+
+# ----- Розумні нагадування -----
+
+def get_smart_reminders():
+    """Отримати всі розумні нагадування"""
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM smart_reminders WHERE enabled = 1").fetchall()
+        return [dict(r) for r in rows]
+
+
+def check_smart_reminders():
+    """Перевірити умови для розумних нагадувань"""
+    reminders = get_smart_reminders()
+    triggered = []
+
+    for r in reminders:
+        condition = r['condition_type']
+        value = r['condition_value']
+
+        if condition == 'vaccination_due':
+            next_vacc = get_next_vaccination()
+            if next_vacc:
+                due_date = datetime.strptime(next_vacc['next_due'], '%Y-%m-%d')
+                days_until = (due_date - datetime.now()).days
+                if days_until <= int(value) if value else 30:
+                    triggered.append(r)
+
+        elif condition == 'parasite_due':
+            treatments = get_parasite_treatments()
+            if treatments:
+                last = treatments[0]
+                if last.get('next_due'):
+                    due_date = datetime.strptime(last['next_due'], '%Y-%m-%d')
+                    days_until = (due_date - datetime.now()).days
+                    if days_until <= int(value) if value else 30:
+                        triggered.append(r)
+
+        elif condition == 'low_activity':
+            trend = get_activity_trend(14)
+            if trend and trend['walk_change_percent'] < -int(value) if value else -20:
+                triggered.append(r)
+
+        elif condition == 'weight_check':
+            last_weight = get_last_weight()
+            target = float(get_setting('target_weight', 8.0))
+            if last_weight and abs(last_weight - target) > 0.5:
+                triggered.append(r)
+
+        elif condition == 'date_based':
+            # Нагадування на основі дати (наприклад, чистка зубів щомісяця)
+            last_procedure = get_last_dental_procedure()
+            if last_procedure:
+                days_since = (datetime.now() - datetime.strptime(last_procedure['procedure_date'], '%Y-%m-%d')).days
+                if days_since >= 30:  # раз на місяць
+                    triggered.append(r)
+
+    return triggered
+
+
+# ----- Сімейний доступ -----
+
+def add_family_member(name, role='member', chat_id=None, notify=True):
+    """Додати члена сім'ї"""
+    with get_db() as conn:
+        conn.execute("""
+            INSERT INTO family_members (name, role, chat_id, notify_enabled)
+            VALUES (?, ?, ?, ?)
+        """, (name, role, chat_id, 1 if notify else 0))
+        return True
+
+
+def get_family_members():
+    """Отримати всіх членів сім'ї"""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT id, name, role, chat_id, notify_enabled,
+                   datetime(added_at, 'unixepoch') as added_at
+            FROM family_members ORDER BY id
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_family_member(member_id):
+    """Видалити члена сім'ї"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM family_members WHERE id = ?", (member_id,))
+        return True
+
+
+def notify_family(message):
+    """Надіслати сповіщення всім членам сім'ї"""
+    members = get_family_members()
+    notified = []
+
+    for m in members:
+        if m['chat_id'] and m['notify_enabled']:
+            try:
+                token = get_setting('telegram_bot_token')
+                if token:
+                    import requests
+                    url = f"https://api.telegram.org/bot{token}/sendMessage"
+                    requests.post(url, json={'chat_id': m['chat_id'], 'text': message}, timeout=5)
+                    notified.append(m['name'])
+            except:
+                pass
+
+    return notified
+
+
+# ----- Стоматологія -----
+
+def add_dental_procedure(procedure_date, procedure_type, vet_name=None, notes=None, next_due=None):
+    """Додати стоматологічну процедуру"""
+    with get_db() as conn:
+        date_ts = int(datetime.strptime(procedure_date, '%Y-%m-%d').timestamp())
+        next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
+        conn.execute("""
+            INSERT INTO dental_care (procedure_date, procedure_type, vet_name, notes, next_due)
+            VALUES (?, ?, ?, ?, ?)
+        """, (date_ts, procedure_type, vet_name, notes, next_due_ts))
+        return True
+
+
+def get_dental_history():
+    """Отримати історію стоматологічних процедур"""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT id, procedure_type, vet_name, notes,
+                   datetime(procedure_date, 'unixepoch') as procedure_date,
+                   datetime(next_due, 'unixepoch') as next_due
+            FROM dental_care ORDER BY procedure_date DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_last_dental_procedure():
+    """Отримати останню стоматологічну процедуру"""
+    with get_db() as conn:
+        row = conn.execute("""
+            SELECT procedure_type,
+                   datetime(procedure_date, 'unixepoch') as procedure_date
+            FROM dental_care ORDER BY procedure_date DESC LIMIT 1
+        """).fetchone()
+        return dict(row) if row else None
