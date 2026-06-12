@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Web Dashboard (оптимізовано для RPi4)
+Ayla Tracker - Web Dashboard (Python 3.13 сумісна версія)
 """
 
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime, timedelta
 import os
 import time
-import csv
-from io import StringIO
 from dotenv import load_dotenv
 import requests
 import logging
@@ -19,7 +17,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.urandom(24)
 
 import database as db
@@ -29,8 +27,50 @@ db.init_db()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
 
-# HTML файл читаємо з диска
-HTML_FILE = os.path.join(os.path.dirname(__file__), 'index.html')
+# Отримуємо шлях до поточної директорії
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_HTML = os.path.join(CURRENT_DIR, 'index.html')
+
+
+@app.route('/')
+def index():
+    """Віддача головної сторінки"""
+    try:
+        if os.path.exists(INDEX_HTML):
+            with open(INDEX_HTML, 'r', encoding='utf-8') as f:
+                return f.read()
+        else:
+            logger.error(f"index.html not found at {INDEX_HTML}")
+            return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Ayla Tracker</title>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                <h1>🐾 Ayla Tracker</h1>
+                <p>Loading...</p>
+                <script>
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                </script>
+            </body>
+            </html>
+            """
+    except Exception as e:
+        logger.error(f"Error serving index: {e}")
+        return f"<h1>Error loading page</h1><p>{e}</p>"
+
+
+# Додайте маршрут для статичних файлів
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """Віддача статичних файлів"""
+    if filename == 'index.html':
+        return index()
+    return send_from_directory(CURRENT_DIR, filename)
 
 
 def send_telegram(message):
@@ -45,16 +85,6 @@ def send_telegram(message):
     except Exception as e:
         logger.error(f"Telegram error: {e}")
         return False
-
-
-@app.route('/')
-def index():
-    try:
-        with open(HTML_FILE, 'r', encoding='utf-8') as f:
-            return f.read()
-    except:
-        # fallback
-        return render_template_string("<h1>Ayla Tracker</h1><p>Loading...</p>")
 
 
 @app.route('/api/stats')
@@ -398,7 +428,6 @@ def api_insight():
         last = db.get_last_weight()
         settings = db.get_settings()
 
-        # КОНВЕРТАЦІЯ В ЧИСЛА - головне виправлення!
         planned_meals = int(settings.get('planned_meals', 4))
         feed_progress = stats['feed']
 
@@ -479,7 +508,6 @@ def api_test_telegram():
 def run_web():
     port = int(os.getenv('WEB_PORT', 5010))
     print(f"🌐 Веб-сервер: http://localhost:{port}")
-    # Для RPi4 використовуємо debug=False і threaded=False для стабільності
     app.run(host='0.0.0.0', port=port, debug=False, threaded=False)
 
 
