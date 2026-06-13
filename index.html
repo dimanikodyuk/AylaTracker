@@ -324,6 +324,21 @@
             margin-top: 4px;
         }
 
+        .edit-event-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #3498db;
+            padding: 8px;
+            border-radius: 30px;
+            margin-right: 4px;
+        }
+
+        .edit-event-btn:active {
+            color: #2980b9;
+        }
+
         .delete-event-btn {
             background: none;
             border: none;
@@ -376,6 +391,16 @@
             border: 1px solid #ddd;
             border-radius: 16px;
             font-size: 14px;
+        }
+
+        .datetime-input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            font-size: 14px;
+            font-family: inherit;
         }
 
         .settings-input {
@@ -747,6 +772,21 @@
 
     <div id="toast" class="toast">✅ Готово!</div>
 
+    <!-- Модальне вікно редагування події -->
+    <div id="editEventModal" class="modal">
+        <div class="modal-content">
+            <h3 id="editModalTitle">✏️ Редагувати подію</h3>
+            <input type="hidden" id="editEventId">
+            <input type="hidden" id="editEventType">
+            <label style="font-size:13px; color:#666;">📅 Дата та час</label>
+            <input type="datetime-local" id="editEventDatetime" class="datetime-input">
+            <div id="editEventExtraFields"></div>
+            <textarea id="editEventNote" rows="2" placeholder="Нотатки"></textarea>
+            <button class="btn" onclick="saveEditedEvent()">💾 Зберегти зміни</button>
+            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('editEventModal')">Скасувати</button>
+        </div>
+    </div>
+
     <!-- Існуючі модальні вікна -->
     <div id="weightModal" class="modal">
         <div class="modal-content">
@@ -889,7 +929,6 @@
                 if (btn) btn.classList.add('active');
             }
 
-            // Завантажуємо дані для активної вкладки
             if (tabName === 'weight') loadWeightData();
             if (tabName === 'training') loadTrainingData();
             if (tabName === 'mental') loadMentalData();
@@ -910,6 +949,119 @@
                     switchTab(tabName, this);
                 });
             });
+        }
+
+        // ========== РЕДАГУВАННЯ ПОДІЙ ==========
+
+        async function editEvent(eventId, eventType, eventSubtype, eventTimestamp, eventValue, eventNote) {
+            const modal = document.getElementById('editEventModal');
+            document.getElementById('editEventId').value = eventId;
+            document.getElementById('editEventType').value = eventType;
+
+            const date = new Date(eventTimestamp * 1000);
+            const datetimeStr = date.toISOString().slice(0, 16);
+            document.getElementById('editEventDatetime').value = datetimeStr;
+            document.getElementById('editEventNote').value = eventNote || '';
+
+            const extraFields = document.getElementById('editEventExtraFields');
+            let extraHtml = '';
+
+            if (eventType === 'feed') {
+                extraHtml = `
+                    <label style="font-size:13px; color:#666; margin-top:10px;">🍖 Кількість (г)</label>
+                    <input type="number" id="editEventValue" class="datetime-input" placeholder="г" value="${eventValue || ''}">
+                `;
+            } else if (eventType === 'walk' || eventType === 'sleep') {
+                const minutes = Math.floor((eventValue || 0) / 60);
+                extraHtml = `
+                    <label style="font-size:13px; color:#666; margin-top:10px;">⏱ Тривалість (хв)</label>
+                    <input type="number" id="editEventValue" class="datetime-input" placeholder="хв" value="${minutes || ''}">
+                `;
+            } else if (eventType === 'toilet') {
+                extraHtml = `
+                    <label style="font-size:13px; color:#666; margin-top:10px;">🚽 Тип</label>
+                    <select id="editEventSubtype" class="datetime-input">
+                        <option value="піся" ${eventSubtype === 'піся' ? 'selected' : ''}>💧 Піся</option>
+                        <option value="кака" ${eventSubtype === 'кака' ? 'selected' : ''}>💩 Кака</option>
+                    </select>
+                `;
+            } else if (eventType === 'mental') {
+                extraHtml = `
+                    <label style="font-size:13px; color:#666; margin-top:10px;">🧠 Тип активності</label>
+                    <select id="editEventSubtype" class="datetime-input">
+                        <option value="puzzle" ${eventSubtype === 'puzzle' ? 'selected' : ''}>🧩 Головоломка</option>
+                        <option value="scent" ${eventSubtype === 'scent' ? 'selected' : ''}>🔍 Пошук ласощів</option>
+                        <option value="shaping" ${eventSubtype === 'shaping' ? 'selected' : ''}>🎓 Вивчення трюків</option>
+                        <option value="sniffing" ${eventSubtype === 'sniffing' ? 'selected' : ''}>👃 Нюхальний килимок</option>
+                    </select>
+                    <label style="font-size:13px; color:#666; margin-top:10px;">⏱ Тривалість (хв)</label>
+                    <input type="number" id="editEventValue" class="datetime-input" placeholder="хв" value="${eventValue || 15}">
+                `;
+            }
+
+            extraFields.innerHTML = extraHtml;
+
+            let title = '✏️ Редагувати подію';
+            if (eventType === 'feed') title = '✏️ Редагувати годування';
+            else if (eventType === 'walk') title = '✏️ Редагувати прогулянку';
+            else if (eventType === 'sleep') title = '✏️ Редагувати сон';
+            else if (eventType === 'toilet') title = '✏️ Редагувати туалет';
+            else if (eventType === 'mental') title = '✏️ Редагувати ментальну активність';
+            document.getElementById('editModalTitle').innerHTML = title;
+
+            modal.style.display = 'flex';
+        }
+
+        async function saveEditedEvent() {
+            const eventId = document.getElementById('editEventId').value;
+            const eventType = document.getElementById('editEventType').value;
+            const datetime = document.getElementById('editEventDatetime').value;
+            const note = document.getElementById('editEventNote').value;
+
+            let value = null;
+            let subtype = null;
+
+            if (eventType === 'toilet') {
+                subtype = document.getElementById('editEventSubtype').value;
+            } else if (eventType === 'mental') {
+                subtype = document.getElementById('editEventSubtype').value;
+                value = parseInt(document.getElementById('editEventValue').value) || 15;
+            } else if (eventType === 'feed') {
+                value = parseInt(document.getElementById('editEventValue').value) || null;
+            } else if (eventType === 'walk' || eventType === 'sleep') {
+                const minutes = parseInt(document.getElementById('editEventValue').value) || 0;
+                value = minutes * 60;
+            }
+
+            const updateData = {
+                datetime: datetime,
+                note: note,
+                type: eventType,
+                subtype: subtype,
+                value: value
+            };
+
+            try {
+                const res = await fetch(`/api/event/${eventId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+                if (res.ok) {
+                    showToast('✅ Подію оновлено');
+                    closeModal('editEventModal');
+                    loadEventsFeed();
+                    loadStats();
+                    loadTimeline();
+                    if (eventType === 'mental') loadMentalData();
+                    if (eventType === 'training') loadTrainingData();
+                } else {
+                    showToast('❌ Помилка оновлення');
+                }
+            } catch(e) {
+                console.error(e);
+                showToast('❌ Помилка оновлення');
+            }
         }
 
         // ========== ІСНУЮЧІ ФУНКЦІЇ ==========
@@ -1010,7 +1162,11 @@
                         <div class="event-card">
                             <div class="event-time-large"><div class="event-hour">${e.time_hour}</div><div class="event-minute">${e.time_str}</div></div>
                             <div class="event-icon-large">${eventIcons[e.type] || '📌'}</div>
-                            <div class="event-details"><div class="event-title-large">${title}</div>${durationText ? `<div class="event-duration">${durationText}</div>` : ''}</div>
+                            <div class="event-details">
+                                <div class="event-title-large">${title}</div>
+                                ${durationText ? `<div class="event-duration">${durationText}</div>` : ''}
+                            </div>
+                            <button class="edit-event-btn" onclick="editEvent(${e.id}, '${e.type}', '${e.subtype || ''}', ${e.timestamp}, ${e.value || 0}, '${(e.note || '').replace(/'/g, "\\'")}')">✏️</button>
                             <button class="delete-event-btn" onclick="deleteEvent(${e.id})">🗑</button>
                         </div>`;
                 }).join('') || '<div class="empty-state">📭 Немає подій</div>';
@@ -1321,9 +1477,8 @@
             } catch(e) { console.error('checkActiveStates error:', e); }
         }
 
-        // ========== НОВІ ФУНКЦІЇ ==========
+        // ========== НОВІ ФУНКЦІЇ (Ветпаспорт, Тренди, Сім'я) ==========
 
-        // ----- Ветеринарний паспорт -----
         async function loadVetData() {
             await loadVaccinations();
             await loadParasiteTreatments();
@@ -1482,7 +1637,6 @@
             loadDentalHistory();
         }
 
-        // ----- Прогнози та тренди -----
         async function loadWeightTrend() {
             try {
                 const res = await fetch('/api/weight_trend');
@@ -1548,7 +1702,6 @@
             loadSmartReminders();
         }
 
-        // ----- Сімейний доступ -----
         async function loadFamilyMembers() {
             try {
                 const res = await fetch('/api/family_members');

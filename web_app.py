@@ -98,7 +98,8 @@ def api_stats():
         })
     except Exception as e:
         logger.error(f"Stats error: {e}")
-        return jsonify({'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'pet_name': 'Айла', 'age_months': 4})
+        return jsonify(
+            {'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'pet_name': 'Айла', 'age_months': 4})
 
 
 @app.route('/api/timeline')
@@ -142,13 +143,46 @@ def api_events():
         events = db.get_events_list(100)
         for e in events:
             dt = datetime.fromtimestamp(e['timestamp'])
-            e['time_str'] = dt.strftime('%d.%m')
+            e['time_str'] = dt.strftime('%d.%m.%Y')
             e['time_hour'] = dt.strftime('%H:%M')
+            e['datetime_full'] = dt.strftime('%Y-%m-%dT%H:%M')
             e['note'] = e.get('subtype') or e['type']
         return jsonify(events)
     except Exception as e:
         logger.error(f"Events error: {e}")
         return jsonify([])
+
+
+@app.route('/api/event/<int:event_id>', methods=['GET', 'PUT'])
+def api_event(event_id):
+    """Отримання або оновлення конкретної події"""
+    try:
+        if request.method == 'GET':
+            event = db.get_event_by_id(event_id)
+            if event:
+                dt = datetime.fromtimestamp(event['timestamp'])
+                event['datetime_full'] = dt.strftime('%Y-%m-%dT%H:%M')
+                return jsonify(event)
+            return jsonify({'error': 'Event not found'}), 404
+
+        elif request.method == 'PUT':
+            data = request.get_json()
+            new_timestamp = None
+            if data.get('datetime'):
+                new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+
+            db.update_event(
+                event_id,
+                new_timestamp=new_timestamp,
+                new_type=data.get('type'),
+                new_subtype=data.get('subtype'),
+                new_value=data.get('value'),
+                new_note=data.get('note')
+            )
+            return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Event API error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/delete_event', methods=['POST'])
@@ -257,6 +291,22 @@ def api_weight():
         return jsonify({'dates': [], 'weights': [], 'history': [], 'daily_food': 200})
 
 
+@app.route('/api/weight/<int:weight_id>', methods=['PUT'])
+def api_update_weight(weight_id):
+    """Оновлення запису ваги"""
+    try:
+        data = request.get_json()
+        new_timestamp = None
+        if data.get('datetime'):
+            new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+
+        db.update_weight_log(weight_id, data['weight'], new_timestamp)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Update weight error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/add_weight', methods=['POST'])
 def api_add_weight():
     try:
@@ -281,6 +331,28 @@ def api_training():
     except Exception as e:
         logger.error(f"Training error: {e}")
         return jsonify({'commands': [], 'scores': [], 'history': []})
+
+
+@app.route('/api/training/<int:training_id>', methods=['PUT'])
+def api_update_training(training_id):
+    """Оновлення запису тренування"""
+    try:
+        data = request.get_json()
+        new_timestamp = None
+        if data.get('datetime'):
+            new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+
+        db.update_training_log(
+            training_id,
+            new_command=data.get('command'),
+            new_duration=data.get('duration'),
+            new_success_rate=data.get('success_rate'),
+            new_timestamp=new_timestamp
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Update training error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/add_training', methods=['POST'])
@@ -310,6 +382,27 @@ def api_mental():
     except Exception as e:
         logger.error(f"Mental error: {e}")
         return jsonify({'dates': [], 'durations': [], 'potty_types': [], 'potty_counts': [], 'avg_mental': 0})
+
+
+@app.route('/api/mental/<int:activity_id>', methods=['PUT'])
+def api_update_mental(activity_id):
+    """Оновлення запису ментальної активності"""
+    try:
+        data = request.get_json()
+        new_timestamp = None
+        if data.get('datetime'):
+            new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+
+        db.update_mental_activity(
+            activity_id,
+            new_activity_type=data.get('activity_type'),
+            new_duration=data.get('duration'),
+            new_timestamp=new_timestamp
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Update mental error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/add_mental', methods=['POST'])
@@ -399,7 +492,8 @@ def api_report():
         return jsonify(db.get_full_report(7))
     except Exception as e:
         logger.error(f"Report error: {e}")
-        return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0, 'mental_minutes': 0, 'training_count': 0, 'training_avg': 0})
+        return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0, 'mental_minutes': 0,
+                        'training_count': 0, 'training_avg': 0})
 
 
 @app.route('/api/send_report')
@@ -606,7 +700,6 @@ def api_check_smart_reminders():
     """Перевірити розумні нагадування"""
     try:
         triggered = db.check_smart_reminders()
-        # Відправляємо сповіщення всій сім'ї
         for r in triggered:
             msg = f"🔔 <b>{r['title']}</b>\n\n{r['description']}"
             db.notify_family(msg)

@@ -349,6 +349,47 @@ def add_event(event_type, subtype=None, value=None, note=None, user_id=None):
         return True
 
 
+def update_event(event_id, new_timestamp=None, new_type=None, new_subtype=None, new_value=None, new_note=None):
+    """Оновлення існуючої події"""
+    with get_db() as conn:
+        updates = []
+        params = []
+
+        if new_timestamp is not None:
+            updates.append("timestamp = ?")
+            params.append(new_timestamp)
+        if new_type is not None:
+            updates.append("type = ?")
+            params.append(new_type)
+        if new_subtype is not None:
+            updates.append("subtype = ?")
+            params.append(new_subtype)
+        if new_value is not None:
+            updates.append("value = ?")
+            params.append(new_value)
+        if new_note is not None:
+            updates.append("note = ?")
+            params.append(new_note)
+
+        if not updates:
+            return False
+
+        params.append(event_id)
+        query = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
+        conn.execute(query, params)
+        return True
+
+
+def get_event_by_id(event_id):
+    """Отримання події за ID"""
+    with get_db() as conn:
+        row = conn.execute("""
+            SELECT id, type, subtype, timestamp, value, note
+            FROM events WHERE id = ?
+        """, (event_id,)).fetchone()
+        return dict(row) if row else None
+
+
 def start_session(session_type, expected_duration=0):
     with get_db() as conn:
         now = int(time.time())
@@ -444,11 +485,12 @@ def get_settings():
         return settings
 
 
-def get_events_list(limit=50):
+def get_events_list(limit=100):
     with get_db() as conn:
         events = conn.execute("""
             SELECT id, type, subtype, timestamp, value, note,
-                   datetime(timestamp, 'unixepoch', 'localtime') as time_str
+                   datetime(timestamp, 'unixepoch', 'localtime') as time_str,
+                   datetime(timestamp, 'unixepoch', 'localtime') as datetime_full
             FROM events ORDER BY timestamp DESC LIMIT ?
         """, (limit,)).fetchall()
         return [dict(e) for e in events]
@@ -467,6 +509,17 @@ def add_weight(weight):
         return True
 
 
+def update_weight_log(weight_id, new_weight, new_timestamp=None):
+    """Оновлення запису ваги"""
+    with get_db() as conn:
+        if new_timestamp:
+            conn.execute("UPDATE weight_logs SET weight = ?, timestamp = ? WHERE id = ?",
+                         (new_weight, new_timestamp, weight_id))
+        else:
+            conn.execute("UPDATE weight_logs SET weight = ? WHERE id = ?", (new_weight, weight_id))
+        return True
+
+
 def get_last_weight():
     with get_db() as conn:
         row = conn.execute("SELECT weight FROM weight_logs ORDER BY timestamp DESC LIMIT 1").fetchone()
@@ -477,10 +530,10 @@ def get_weight_history(days=90):
     start_time = int(time.time()) - days * 86400
     with get_db() as conn:
         rows = conn.execute("""
-            SELECT datetime(timestamp, 'unixepoch', 'localtime') as date, weight
+            SELECT id, datetime(timestamp, 'unixepoch', 'localtime') as date, weight, timestamp
             FROM weight_logs WHERE timestamp >= ? ORDER BY timestamp
         """, (start_time,)).fetchall()
-        return [{'date': r['date'], 'weight': r['weight']} for r in rows]
+        return [{'id': r['id'], 'date': r['date'], 'weight': r['weight'], 'timestamp': r['timestamp']} for r in rows]
 
 
 def add_training(command, duration, success_rate):
@@ -490,6 +543,34 @@ def add_training(command, duration, success_rate):
             INSERT INTO training_logs (timestamp, command, duration, success_rate)
             VALUES (?, ?, ?, ?)
         """, (now, command, duration, success_rate))
+        return True
+
+
+def update_training_log(training_id, new_command=None, new_duration=None, new_success_rate=None, new_timestamp=None):
+    """Оновлення запису тренування"""
+    with get_db() as conn:
+        updates = []
+        params = []
+
+        if new_command is not None:
+            updates.append("command = ?")
+            params.append(new_command)
+        if new_duration is not None:
+            updates.append("duration = ?")
+            params.append(new_duration)
+        if new_success_rate is not None:
+            updates.append("success_rate = ?")
+            params.append(new_success_rate)
+        if new_timestamp is not None:
+            updates.append("timestamp = ?")
+            params.append(new_timestamp)
+
+        if not updates:
+            return False
+
+        params.append(training_id)
+        query = f"UPDATE training_logs SET {', '.join(updates)} WHERE id = ?"
+        conn.execute(query, params)
         return True
 
 
@@ -506,12 +587,13 @@ def get_training_stats():
 def get_training_history(limit=30):
     with get_db() as conn:
         history = conn.execute("""
-            SELECT datetime(timestamp, 'unixepoch', 'localtime') as date,
+            SELECT id, datetime(timestamp, 'unixepoch', 'localtime') as date, timestamp,
                    command, duration, success_rate
             FROM training_logs ORDER BY timestamp DESC LIMIT ?
         """, (limit,)).fetchall()
         return [
-            {'date': r['date'], 'command': r['command'], 'duration': r['duration'], 'success_rate': r['success_rate']}
+            {'id': r['id'], 'date': r['date'], 'timestamp': r['timestamp'], 'command': r['command'],
+             'duration': r['duration'], 'success_rate': r['success_rate']}
             for r in history]
 
 
@@ -522,6 +604,31 @@ def add_mental_activity(activity_type, duration, difficulty=3):
             INSERT INTO mental_activities (timestamp, activity_type, duration, difficulty)
             VALUES (?, ?, ?, ?)
         """, (now, activity_type, duration, difficulty))
+        return True
+
+
+def update_mental_activity(activity_id, new_activity_type=None, new_duration=None, new_timestamp=None):
+    """Оновлення запису ментальної активності"""
+    with get_db() as conn:
+        updates = []
+        params = []
+
+        if new_activity_type is not None:
+            updates.append("activity_type = ?")
+            params.append(new_activity_type)
+        if new_duration is not None:
+            updates.append("duration = ?")
+            params.append(new_duration)
+        if new_timestamp is not None:
+            updates.append("timestamp = ?")
+            params.append(new_timestamp)
+
+        if not updates:
+            return False
+
+        params.append(activity_id)
+        query = f"UPDATE mental_activities SET {', '.join(updates)} WHERE id = ?"
+        conn.execute(query, params)
         return True
 
 
@@ -817,7 +924,6 @@ def get_weight_trend(days=30):
     x = list(range(n))
     y = [h['weight'] for h in history]
 
-    # Проста лінійна регресія
     x_mean = sum(x) / n
     y_mean = sum(y) / n
 
@@ -830,7 +936,6 @@ def get_weight_trend(days=30):
     slope = numerator / denominator
     intercept = y_mean - slope * x_mean
 
-    # Прогноз на наступні 7 днів
     prediction = slope * (n + 7) + intercept
 
     return {
@@ -862,7 +967,6 @@ def get_activity_trend(days=30):
         walk_avg = sum(r['walk_minutes'] for r in daily_activity) / len(daily_activity)
         sleep_avg = sum(r['sleep_hours'] for r in daily_activity) / len(daily_activity)
 
-        # Порівняння останнього тижня з попередніми
         last_week = daily_activity[-7:] if len(daily_activity) >= 7 else daily_activity
         prev_weeks = daily_activity[:-7] if len(daily_activity) > 7 else []
 
@@ -928,11 +1032,10 @@ def check_smart_reminders():
                 triggered.append(r)
 
         elif condition == 'date_based':
-            # Нагадування на основі дати (наприклад, чистка зубів щомісяця)
             last_procedure = get_last_dental_procedure()
             if last_procedure:
                 days_since = (datetime.now() - datetime.strptime(last_procedure['procedure_date'], '%Y-%m-%d')).days
-                if days_since >= 30:  # раз на місяць
+                if days_since >= 30:
                     triggered.append(r)
 
     return triggered
