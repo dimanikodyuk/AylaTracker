@@ -1419,3 +1419,16 @@ def notify_family(message):
             pass
 
     return notified
+
+def delete_reminder(reminder_id):
+    """Видалити нагадування"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM medical_reminders WHERE id = ?", (reminder_id,))
+        return True
+
+
+def delete_symptom(symptom_id):
+    """Видалити запис симптомів"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM symptoms_log WHERE id = ?", (symptom_id,))
+        return True
