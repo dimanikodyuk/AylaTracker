@@ -773,12 +773,23 @@ def get_potty_stats():
 
 def add_medical_reminder(title, description, interval_days, reminder_time='09:00'):
     with get_db() as conn:
+        # Перевіряємо чи існує колонка reminder_time
+        cursor = conn.execute("PRAGMA table_info(medical_reminders)")
+        columns = [col[1] for col in cursor.fetchall()]
+
         now = int(time.time())
         next_due = now + interval_days * 86400
-        conn.execute("""
-            INSERT INTO medical_reminders (title, description, interval_days, reminder_time, last_triggered, next_due, enabled)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
-        """, (title, description, interval_days, reminder_time, now, next_due))
+
+        if 'reminder_time' in columns:
+            conn.execute("""
+                INSERT INTO medical_reminders (title, description, interval_days, reminder_time, last_triggered, next_due, enabled)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (title, description, interval_days, reminder_time, now, next_due))
+        else:
+            conn.execute("""
+                INSERT INTO medical_reminders (title, description, interval_days, last_triggered, next_due, enabled)
+                VALUES (?, ?, ?, ?, ?, 1)
+            """, (title, description, interval_days, now, next_due))
         return True
 
 
@@ -1170,3 +1181,32 @@ def notify_family(message):
             pass
 
     return notified
+
+
+# Додайте цю функцію в database.py після init_db() або в самій init_db() після створення таблиць
+
+def migrate_db():
+    """Міграція бази даних - додавання нових колонок"""
+    with get_db() as conn:
+        # Перевіряємо наявність колонки reminder_time в medical_reminders
+        cursor = conn.execute("PRAGMA table_info(medical_reminders)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'reminder_time' not in columns:
+            conn.execute("ALTER TABLE medical_reminders ADD COLUMN reminder_time TEXT DEFAULT '09:00'")
+            print("✅ Додано колонку reminder_time до medical_reminders")
+
+        if 'last_triggered' not in columns:
+            conn.execute("ALTER TABLE medical_reminders ADD COLUMN last_triggered INTEGER DEFAULT 0")
+            print("✅ Додано колонку last_triggered до medical_reminders")
+
+        # Перевіряємо інші таблиці
+        cursor = conn.execute("PRAGMA table_info(body_measurements)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'note' not in columns:
+            conn.execute("ALTER TABLE body_measurements ADD COLUMN note TEXT")
+            print("✅ Додано колонку note до body_measurements")
+
+# Викличте migrate_db() після init_db() в кінці файлу
+# Додайте цей рядок перед останнім print в init_db() або після нього
