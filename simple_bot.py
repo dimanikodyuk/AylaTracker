@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Telegram Bot (оновлена версія з груповими чатами та функціоналом цуценяти)
+Ayla Tracker - Telegram Bot (оновлена версія з груповими чатами)
 """
 
 import logging
@@ -42,7 +42,7 @@ class SimpleTelegramBot:
                 response = requests.post(url, json=payload, timeout=10)
                 return response.json()
             except Exception as e:
-                logger.error(f"Send message error (attempt {attempt + 1}): {e}")
+                logger.error(f"Send message error (attempt {attempt+1}): {e}")
                 time.sleep(2)
         return None
 
@@ -68,7 +68,7 @@ class SimpleTelegramBot:
                 if data.get("ok"):
                     return data.get("result", [])
             except Exception as e:
-                logger.error(f"Get updates error (attempt {attempt + 1}): {e}")
+                logger.error(f"Get updates error (attempt {attempt+1}): {e}")
                 time.sleep(2)
         return []
 
@@ -92,8 +92,7 @@ def get_main_keyboard():
             ["🚶 Почати прогулянку", "⏰ Закінчити прогулянку"],
             ["😴 Почати сон", "⏰ Закінчити сон"],
             ["🧠 Ментальне", "🏋️ Тренування", "⚖️ Вага"],
-            ["⚠️ Поведінка", "💸 Збитки", "📊 Статистика"],
-            ["🐕 Зуміс", "💉 Вакцинація", "📈 Звіт"],
+            ["⚠️ Поведінка", "📊 Статистика", "📈 Звіт"],
             ["ℹ️ Допомога"]
         ],
         "resize_keyboard": True
@@ -168,42 +167,14 @@ def get_rate_keyboard(command_id, command_name):
     }
 
 
-def get_damage_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "➕ Додати збиток", "callback_data": "damage_add"}],
-            [{"text": "📊 Статистика збитків", "callback_data": "damage_stats"}],
-            [{"text": "📋 Список збитків", "callback_data": "damage_list"}]
-        ]
-    }
-
-
-def get_zoomie_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "🏃 Зафіксувати зуміс", "callback_data": "zoomie_add"}],
-            [{"text": "📊 Статистика зумісів", "callback_data": "zoomie_stats"}],
-            [{"text": "📋 Історія зумісів", "callback_data": "zoomie_list"}]
-        ]
-    }
-
-
 # ========== ОБРОБКА ПОВІДОМЛЕНЬ ==========
-
-def check_quarantine_and_walk(bot, chat_id):
-    """Перевірка карантину перед прогулянкою"""
-    status = db.get_quarantine_status()
-    if status['in_quarantine']:
-        bot.send_message(chat_id, status['message'], parse_mode="HTML")
-        return False
-    return True
-
 
 def handle_message(bot, chat_id, text, user_data):
     # Їжа
     if text == "🍖 Їжа":
         db.add_event("feed", note="🍖 Годування")
         bot.send_message(chat_id, "✅ Записано годування!")
+        # Нагадування про туалет
         remind_minutes = int(db.get_setting('potty_reminder_minutes', 25))
         threading.Timer(remind_minutes * 60, send_potty_reminder, args=[chat_id]).start()
 
@@ -218,9 +189,6 @@ def handle_message(bot, chat_id, text, user_data):
 
     # Прогулянка
     elif text == "🚶 Почати прогулянку":
-        # Перевірка карантину
-        if not check_quarantine_and_walk(bot, chat_id):
-            return
         safe_duration = db.get_safe_walk_duration_minutes()
         db.start_session("walk", expected_duration=safe_duration)
         bot.send_message(chat_id, f"🚶 Прогулянка розпочата!\n⏰ Безпечний ліміт: {safe_duration} хв")
@@ -248,32 +216,6 @@ def handle_message(bot, chat_id, text, user_data):
         keyboard = get_behavior_keyboard()
         bot.send_message(chat_id, "⚠️ Оберіть тип поведінки:", reply_markup=keyboard)
 
-    # Збитки
-    elif text == "💸 Збитки":
-        bot.send_message(chat_id, "💸 <b>Калькулятор збитків Айли</b>\n\n"
-                                  "Джек-рассели можуть бути руйнівними особливо в період зміни зубів!\n"
-                                  "Тут можна відстежувати фінансові втрати від зубів Айли 🦷",
-                         reply_markup=get_damage_keyboard(), parse_mode="HTML")
-
-    # Зуміс
-    elif text == "🐕 Зуміс":
-        bot.send_message(chat_id, "🐕 <b>Трекер Зумісів (FRAP)</b>\n\n"
-                                  "Зуміс - це раптовий напад шаленої енергії, коли собака бігає по колу.\n"
-                                  "Фіксація цих періодів допоможе передбачати гіперактивність! 💨",
-                         reply_markup=get_zoomie_keyboard(), parse_mode="HTML")
-
-    # Вакцинація
-    elif text == "💉 Вакцинація":
-        status = db.get_quarantine_status()
-        keyboard = {
-            "inline_keyboard": [
-                [{"text": "📅 Встановити дату щеплення", "callback_data": "vaccination_set"}],
-                [{"text": "📊 Статус карантину", "callback_data": "vaccination_status"}]
-            ]
-        }
-        bot.send_message(chat_id, f"💉 <b>Вакцинаційний контроль</b>\n\n{status['message']}",
-                         reply_markup=keyboard, parse_mode="HTML")
-
     # Ментальне
     elif text == "🧠 Ментальне":
         bot.send_message(chat_id, "🧠 Оберіть тип активності:", reply_markup=get_mental_keyboard())
@@ -297,8 +239,6 @@ def handle_message(bot, chat_id, text, user_data):
     # Звіт
     elif text == "📈 Звіт":
         report = db.get_full_report(7)
-        damages = db.get_damages_stats(7)
-        zoomies = db.get_zoomies_stats(7)
         bot.send_message(chat_id,
                          f"📈 <b>Тижневий звіт</b>\n\n"
                          f"🍖 Годувань: {report['feed']}\n"
@@ -307,9 +247,7 @@ def handle_message(bot, chat_id, text, user_data):
                          f"🚽 Туалет: {report['toilet']}\n"
                          f"⚠️ Поведінка: {report['behavior']}\n"
                          f"🧠 Ментальне: {report['mental_minutes']} хв\n"
-                         f"🏋️ Тренувань: {report['training_count']} (усп. {report['training_avg']}/5)\n"
-                         f"💸 Збитків: {damages['total']:.0f} грн\n"
-                         f"🐕 Зумісів: {zoomies['count']} разів",
+                         f"🏋️ Тренувань: {report['training_count']} (усп. {report['training_avg']}/5)",
                          parse_mode="HTML")
 
     # Допомога
@@ -323,10 +261,7 @@ def handle_message(bot, chat_id, text, user_data):
                          "⚠️ Поведінка - запис проблемної поведінки\n"
                          "🧠 Ментальне - інтелектуальні ігри\n"
                          "🏋️ Тренування - навчання команд\n"
-                         "⚖️ Вага - контроль розвитку\n"
-                         "💸 Збитки - калькулятор фінансових втрат\n"
-                         "🐕 Зуміс - трекер раптової активності\n"
-                         "💉 Вакцинація - контроль карантину\n\n"
+                         "⚖️ Вага - контроль розвитку\n\n"
                          "📊 <b>Команди:</b>\n"
                          "/start - Головне меню\n"
                          "/myid - Отримати Chat ID\n"
@@ -374,101 +309,6 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
         else:
             bot.answer_callback(callback_id, "❌ Помилка")
 
-    # Збитки
-    elif data == "damage_add":
-        bot.answer_callback(callback_id)
-        bot.send_message(chat_id,
-                         "💸 Введіть збиток у форматі:\n`шльопанці, 250`\nабо\n`кабель зарядки, 500, електроніка`\n\n"
-                         "Формат: назва, вартість, категорія (опціонально)", parse_mode="Markdown")
-        user_data['awaiting_damage'] = True
-
-    elif data == "damage_stats":
-        stats = db.get_damages_stats(30)
-        last_text = ""
-        if stats['last']:
-            last_text = f"\n🕰️ Останній: {stats['last']['item_name']} - {stats['last']['cost']:.0f} грн ({stats['last']['date']})"
-
-        if stats['total'] > 5000:
-            mood = "😱 Ой-ой! Це вже майже як новий iPhone!"
-        elif stats['total'] > 2000:
-            mood = "😬 Уф, боляче для гаманця..."
-        elif stats['total'] > 500:
-            mood = "😐 Прикро, але терпимо"
-        else:
-            mood = "🙂 Поки що не дуже дорого. Але Айла ще тільки починає!"
-
-        bot.send_message(chat_id, f"💸 <b>Фінансові втрати від зубів Айли</b>\n\n"
-                                  f"📊 <b>За останні 30 днів:</b>\n"
-                                  f"💰 Загальна сума: <b>{stats['total']:.0f} грн</b>\n"
-                                  f"🔢 Кількість інцидентів: {stats['count']}\n"
-                                  f"📈 Середня вартість: {stats['total'] / max(1, stats['count']):.0f} грн\n"
-                                  f"{last_text}\n\n"
-                                  f"{mood}\n\n"
-                                  f"<i>Порада: Коли Айла починає гризти речі - запропонуйте їй іграшку або конг з ласощами!</i>",
-                         parse_mode="HTML")
-        bot.answer_callback(callback_id)
-
-    elif data == "damage_list":
-        damages = db.get_damages(20)
-        if not damages:
-            bot.send_message(chat_id, "📭 Поки що немає записів про збитки. Айла ще не нищила речі? Чудово! 🎉")
-        else:
-            text = "💸 <b>Список знищених речей</b>\n\n"
-            for d in damages[:15]:
-                text += f"• {d['item_name']} — <b>{d['cost']:.0f} грн</b> ({d['date']})\n"
-            if len(damages) > 15:
-                text += f"\n... і ще {len(damages) - 15} записів"
-            bot.send_message(chat_id, text, parse_mode="HTML")
-        bot.answer_callback(callback_id)
-
-    # Зуміс
-    elif data == "zoomie_add":
-        bot.answer_callback(callback_id)
-        bot.send_message(chat_id, "🐕 Введіть тривалість зумісу в хвилинах:\n(наприклад: 5)\n\n"
-                                  "Можна також вказати інтенсивність: `5, 4` (хв, інтенсивність 1-5)",
-                         parse_mode="Markdown")
-        user_data['awaiting_zoomie'] = True
-
-    elif data == "zoomie_stats":
-        stats = db.get_zoomies_stats(30)
-        peak_hour_text = f"⏰ Пік активності: {stats['peak_hour']}:00" if stats['peak_hour'] else "Немає даних"
-
-        if stats['count'] == 0:
-            message = "🐕 За останні 30 днів не було зафіксовано жодного зумісу! 🌟"
-        else:
-            message = (f"🐕 <b>Статистика зумісів за 30 днів</b>\n\n"
-                       f"📊 Кількість: {stats['count']} разів\n"
-                       f"⏱ Середня тривалість: {stats['avg_duration']} хв\n"
-                       f"{peak_hour_text}\n\n"
-                       f"<i>💡 Порада: Якщо зуміси часто трапляються в один і той самий час, спробуйте дати Айлі інтелектуальне навантаження за 30 хв до цього, щоб заспокоїти нервову систему!</i>")
-        bot.send_message(chat_id, message, parse_mode="HTML")
-        bot.answer_callback(callback_id)
-
-    elif data == "zoomie_list":
-        zoomies = db.get_zoomies(20)
-        if not zoomies:
-            bot.send_message(chat_id, "📭 Немає записів про зуміси. Айла була спокійною! 🐕")
-        else:
-            text = "🐕 <b>Історія зумісів</b>\n\n"
-            for z in zoomies[:15]:
-                intensity_icon = {1: "💨", 2: "🌪️", 3: "🌀", 4: "⚡", 5: "💥"}.get(z['intensity'], "🌀")
-                text += f"• {z['date']} о {z['time_of_day']} — {z['duration']} хв {intensity_icon}\n"
-            bot.send_message(chat_id, text, parse_mode="HTML")
-        bot.answer_callback(callback_id)
-
-    # Вакцинація
-    elif data == "vaccination_set":
-        bot.answer_callback(callback_id)
-        bot.send_message(chat_id, "💉 Введіть дату останнього щеплення у форматі:\n`2025-01-15`\n\n"
-                                  "Після введення буде автоматично розраховано 14 днів карантину.",
-                         parse_mode="Markdown")
-        user_data['awaiting_vaccination'] = True
-
-    elif data == "vaccination_status":
-        status = db.get_quarantine_status()
-        bot.send_message(chat_id, status['message'], parse_mode="HTML")
-        bot.answer_callback(callback_id)
-
     # Вибір команди для тренування
     elif data.startswith("training_"):
         training_id = int(data.split('_')[1])
@@ -497,6 +337,7 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
     elif data.startswith("rate_"):
         parts = data.split('_')
         rate = int(parts[1])
+        training_id = int(parts[2]) if len(parts) > 2 else None
         command_name = user_data.get('training_command_name', 'Тренування')
         db.add_training(command_name, 10, rate)
         bot.answer_callback(callback_id, f"✅ Записано!")
@@ -535,7 +376,7 @@ def send_potty_reminder(chat_id):
 def check_reminders_loop(bot):
     """Фонова перевірка нагадувань (кожні 5 хвилин)"""
     while True:
-        time.sleep(300)
+        time.sleep(300)  # Перевіряємо кожні 5 хвилин (не кожну хвилину)
         try:
             due_reminders = db.get_due_medical_reminders()
             for r in due_reminders:
@@ -559,6 +400,7 @@ def run_bot():
     db.init_db()
     bot = SimpleTelegramBot(token)
 
+    # Запускаємо перевірку нагадувань
     reminder_thread = threading.Thread(target=check_reminders_loop, args=(bot,), daemon=True)
     reminder_thread.start()
 
@@ -577,9 +419,11 @@ def run_bot():
                     text = message.get('text', '')
                     chat_type = message.get('chat', {}).get('type', 'private')
 
+                    # Додаємо груповий чат якщо це група
                     if chat_type in ['group', 'supergroup']:
                         db.add_group_chat(chat_id, message.get('chat', {}).get('title'))
 
+                    # Обробка команди /start
                     if text == '/start':
                         user = message.get('from', {})
                         db.add_user(chat_id, user.get('username'), user.get('first_name'), user.get('last_name'))
@@ -599,8 +443,6 @@ def run_bot():
 
                     elif text == '/stats':
                         report = db.get_full_report(30)
-                        damages = db.get_damages_stats(30)
-                        zoomies = db.get_zoomies_stats(30)
                         bot.send_message(chat_id,
                                          f"📊 <b>Статистика за 30 днів</b>\n\n"
                                          f"🍖 Годувань: {report['feed']}\n"
@@ -608,9 +450,7 @@ def run_bot():
                                          f"😴 Сну: {report['sleep_hours']} год\n"
                                          f"🚽 Туалет: {report['toilet']}\n"
                                          f"⚠️ Поведінка: {report['behavior']}\n"
-                                         f"🧠 Ментальне: {report['mental_minutes']} хв\n"
-                                         f"💸 Збитків: {damages['total']:.0f} грн\n"
-                                         f"🐕 Зумісів: {zoomies['count']} разів",
+                                         f"🧠 Ментальне: {report['mental_minutes']} хв",
                                          parse_mode="HTML")
 
                     elif text == '/reminders':
@@ -623,30 +463,56 @@ def run_bot():
                                 message_text += f"• {r['title']}\n  ⏰ {r['next_due_str']} о {r.get('reminder_time', '09:00')}\n\n"
                             bot.send_message(chat_id, message_text, parse_mode="HTML")
 
-                    # Обробка введення збитку
-                    elif user_data.get('awaiting_damage'):
-                        try:
-                            parts = text.split(',')
-                            item_name = parts[0].strip()
-                            cost = float(parts[1].strip().replace('грн', '').replace('$', '').strip())
-                            category = parts[2].strip() if len(parts) > 2 else None
-                            db.add_damage(item_name, cost, category)
-                            bot.send_message(chat_id, f"✅ Додано збиток: {item_name} - {cost:.0f} грн\n\n"
-                                                      f"💡 Порада: Додайте до списку іграшок Айли, щоб відволікати її від важливих речей!")
-                            user_data['awaiting_damage'] = False
-                        except Exception as e:
-                            bot.send_message(chat_id,
-                                             f"❌ Помилка формату. Використовуйте:\n`шльопанці, 250`\nабо\n`кабель, 500, електроніка`")
+                    # Додавання нового типу тренування
+                    elif user_data.get('awaiting_new_training'):
+                        db.add_training_type(text)
+                        bot.send_message(chat_id, f"✅ Додано нову команду: {text}")
+                        user_data['awaiting_new_training'] = False
 
-                    # Обробка введення зумісу
-                    elif user_data.get('awaiting_zoomie'):
+                    # Додавання нового типу ментальної активності
+                    elif user_data.get('awaiting_new_mental'):
+                        db.add_mental_type(text)
+                        bot.send_message(chat_id, f"✅ Додано нову активність: {text}")
+                        user_data['awaiting_new_mental'] = False
+
+                    # Тривалість ментальної активності
+                    elif user_data.get('awaiting_mental_duration'):
                         try:
-                            parts = text.split(',')
-                            duration = int(parts[0].strip())
-                            intensity = int(parts[1].strip()) if len(parts) > 1 else 3
-                            intensity = max(1, min(5, intensity))
-                            db.add_zoomie(duration, intensity)
-                            intensity_icon = {1: "💨", 2: "🌪️", 3: "🌀", 4: "⚡", 5: "💥"}.get(intensity, "🌀")
-                            bot.send_message(chat_id,
-                                             f"✅ Зафіксовано зуміс!\n⏱ Тривалість: {duration} хв\n{intensity_icon} Інтенсивність: {intensity}/5\n\n"
-                                             f"💡 Порада:
+                            duration = int(text)
+                            mental_id = user_data['awaiting_mental_duration']
+                            types = {t['id']: t for t in db.get_mental_types()}
+                            mental = types.get(mental_id)
+                            if mental:
+                                db.add_mental_activity(mental['name'], duration, 3)
+                                bot.send_message(chat_id, f"🧠 Записано: {mental['name']} ({duration} хв)")
+                            user_data['awaiting_mental_duration'] = None
+                        except ValueError:
+                            bot.send_message(chat_id, "❌ Введіть число (хвилини)")
+
+                    elif not text.startswith('/'):
+                        if chat_id not in user_data:
+                            user_data[chat_id] = {}
+                        handle_message(bot, chat_id, text, user_data[chat_id])
+
+                elif 'callback_query' in update:
+                    callback = update['callback_query']
+                    chat_id = callback['message']['chat']['id']
+                    callback_id = callback['id']
+                    data = callback.get('data', '')
+
+                    if chat_id not in user_data:
+                        user_data[chat_id] = {}
+                    handle_callback(bot, chat_id, callback_id, data, user_data[chat_id])
+
+                if 'update_id' in update:
+                    bot.offset = update['update_id'] + 1
+
+        except Exception as e:
+            logger.error(f"Bot loop error: {e}")
+            time.sleep(5)
+
+        time.sleep(1)
+
+
+if __name__ == '__main__':
+    run_bot()
