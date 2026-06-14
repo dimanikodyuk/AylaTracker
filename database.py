@@ -773,23 +773,28 @@ def get_potty_stats():
 
 def add_medical_reminder(title, description, interval_days, reminder_time='09:00'):
     with get_db() as conn:
-        # Перевіряємо чи існує колонка reminder_time
+        # Перевіряємо які колонки є в таблиці
         cursor = conn.execute("PRAGMA table_info(medical_reminders)")
         columns = [col[1] for col in cursor.fetchall()]
 
         now = int(time.time())
         next_due = now + interval_days * 86400
 
-        if 'reminder_time' in columns:
+        if 'reminder_time' in columns and 'last_triggered' in columns:
             conn.execute("""
                 INSERT INTO medical_reminders (title, description, interval_days, reminder_time, last_triggered, next_due, enabled)
                 VALUES (?, ?, ?, ?, ?, ?, 1)
             """, (title, description, interval_days, reminder_time, now, next_due))
+        elif 'reminder_time' in columns:
+            conn.execute("""
+                INSERT INTO medical_reminders (title, description, interval_days, reminder_time, next_due, enabled)
+                VALUES (?, ?, ?, ?, ?, 1)
+            """, (title, description, interval_days, reminder_time, next_due))
         else:
             conn.execute("""
-                INSERT INTO medical_reminders (title, description, interval_days, last_triggered, next_due, enabled)
-                VALUES (?, ?, ?, ?, ?, 1)
-            """, (title, description, interval_days, now, next_due))
+                INSERT INTO medical_reminders (title, description, interval_days, next_due, enabled)
+                VALUES (?, ?, ?, ?, 1)
+            """, (title, description, interval_days, next_due))
         return True
 
 
