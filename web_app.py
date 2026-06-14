@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Web Dashboard (оновлена версія з функціоналом цуценяти)
+Ayla Tracker - Web Dashboard (оновлена версія з покращеними звітами)
 """
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -80,6 +80,7 @@ def send_telegram_photo(photo_bytes, caption, chat_id=None):
 
 
 def make_bar(value, max_val, width=12, fill='█', empty='░'):
+    """ASCII прогрес-бар"""
     if max_val == 0:
         filled = 0
     else:
@@ -89,6 +90,7 @@ def make_bar(value, max_val, width=12, fill='█', empty='░'):
 
 
 def generate_weekly_chart(weekly_data):
+    """Генерує PNG з тижневим графіком через matplotlib"""
     try:
         import matplotlib
         matplotlib.use('Agg')
@@ -116,6 +118,7 @@ def generate_weekly_chart(weekly_data):
         x = np.arange(len(short_dates))
         w = 0.6
 
+        # Walk bars
         ax1.bar(x, walk, width=w, color='#3498db', alpha=0.85, zorder=3)
         ax1.set_facecolor('#f0f4f8')
         ax1.set_ylabel('хв', color='#3498db', fontsize=9)
@@ -126,11 +129,11 @@ def generate_weekly_chart(weekly_data):
         ax1.tick_params(colors='#555')
         for i, v in enumerate(walk):
             if v > 0:
-                ax1.text(i, v + 0.5, str(int(v)), ha='center', va='bottom', fontsize=8, color='#2980b9',
-                         fontweight='bold')
+                ax1.text(i, v + 0.5, str(int(v)), ha='center', va='bottom', fontsize=8, color='#2980b9', fontweight='bold')
         ax1.spines['top'].set_visible(False)
         ax1.spines['right'].set_visible(False)
 
+        # Sleep bars
         ax2.bar(x, sleep, width=w, color='#9b59b6', alpha=0.85, zorder=3)
         ax2.set_facecolor('#f4f0f8')
         ax2.set_ylabel('год', color='#9b59b6', fontsize=9)
@@ -141,8 +144,7 @@ def generate_weekly_chart(weekly_data):
         ax2.tick_params(colors='#555')
         for i, v in enumerate(sleep):
             if v > 0:
-                ax2.text(i, v + 0.2, f'{v:.1f}', ha='center', va='bottom', fontsize=8, color='#8e44ad',
-                         fontweight='bold')
+                ax2.text(i, v + 0.2, f'{v:.1f}', ha='center', va='bottom', fontsize=8, color='#8e44ad', fontweight='bold')
         ax2.spines['top'].set_visible(False)
         ax2.spines['right'].set_visible(False)
 
@@ -157,8 +159,8 @@ def generate_weekly_chart(weekly_data):
         logger.error(f"Chart generation error: {e}")
         return None
 
-
 def send_notifications(message):
+    """Відправка сповіщень всім отримувачам"""
     recipients = db.get_notification_recipients()
     sent = 0
     for chat_id in recipients:
@@ -166,13 +168,15 @@ def send_notifications(message):
             sent += 1
     return sent
 
-
 def build_daily_report_text(date_str, events, pet_name='Айла'):
+    """Формує красивий текст денного звіту"""
     feed_events = [e for e in events if e['type'] == 'feed']
     walk_events = [e for e in events if e['type'] == 'walk']
     sleep_events = [e for e in events if e['type'] == 'sleep']
     toilet_events = [e for e in events if e['type'] == 'toilet']
     behavior_events = [e for e in events if e['type'] == 'behavior']
+    training_events = [e for e in events if e['type'] == 'training']
+    mental_events = [e for e in events if e['type'] == 'mental']
 
     walk_min = sum(e['value'] for e in walk_events if e['value']) // 60
     sleep_hrs = sum(e['value'] for e in sleep_events if e['value']) / 3600
@@ -181,17 +185,19 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
 
     try:
         dt = datetime.strptime(date_str, '%Y-%m-%d')
-        day_ua = ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П\'ятниця', 'Субота', 'Неділя'][dt.weekday()]
+        day_ua = ['Понеділок','Вівторок','Середа','Четвер','П\'ятниця','Субота','Неділя'][dt.weekday()]
         date_pretty = f"{dt.strftime('%d.%m.%Y')} ({day_ua})"
     except:
         date_pretty = date_str
 
+    # Оцінка дня
     score = 0
     if len(feed_events) >= 3: score += 2
     if walk_min >= 20: score += 2
     if walk_min >= 40: score += 1
     if sleep_hrs >= 10: score += 2
     if not behavior_events: score += 2
+    if training_events: score += 1
 
     mood_emoji = '🌟' if score >= 8 else ('😊' if score >= 5 else '😐')
 
@@ -236,6 +242,13 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
         f"🚽 <b>Туалет</b>: 💧 Піся ×{pee}   💩 Кака ×{poop}",
     ]
 
+    if training_events:
+        lines += ["", f"🏋️ <b>Тренування</b>: {len(training_events)} сесій"]
+
+    if mental_events:
+        total_mental = sum(e.get('duration', 0) for e in mental_events)
+        lines += ["", f"🧠 <b>Ментальна активність</b>: {total_mental} хв"]
+
     if behavior_events:
         lines += ["", f"⚠️ <b>Поведінка</b>: {len(behavior_events)} інцидент(ів)"]
         for e in behavior_events:
@@ -252,7 +265,8 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
     return "\n".join(lines)
 
 
-def build_weekly_report_text(report, pet_name='Айла', damages=None, zoomies=None):
+def build_weekly_report_text(report, pet_name='Айла'):
+    """Формує красивий текст тижневого звіту"""
     walk_min = report.get('walk_seconds', 0) // 60
     sleep_hrs = report.get('sleep_seconds', 0) / 3600
     avg_walk = walk_min / 7
@@ -279,19 +293,6 @@ def build_weekly_report_text(report, pet_name='Айла', damages=None, zoomies=
         f"🚽 <b>Туалет</b>: {report.get('toilet', 0)} разів за тиждень",
         "",
     ]
-
-    if damages and damages.get('total', 0) > 0:
-        lines += [
-            f"💸 <b>Збитки</b>: {damages['total']:.0f} грн за тиждень",
-            "",
-        ]
-
-    if zoomies and zoomies.get('count', 0) > 0:
-        lines += [
-            f"🐕 <b>Зуміси</b>: {zoomies['count']} разів",
-            f"   Середня тривалість: {zoomies.get('avg_duration', 0)} хв",
-            "",
-        ]
 
     if report.get('training_count', 0) > 0:
         lines += [
@@ -336,9 +337,7 @@ def api_stats():
             'age_months': db.get_pet_age_months()
         })
     except Exception as e:
-        return jsonify(
-            {'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'behavior': 0, 'pet_name': 'Айла',
-             'age_months': 4})
+        return jsonify({'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'behavior': 0, 'pet_name': 'Айла', 'age_months': 4})
 
 
 @app.route('/api/timeline')
@@ -409,7 +408,7 @@ def api_event(event_id):
             if data.get('datetime'):
                 new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
             db.update_event(event_id, new_timestamp=new_timestamp, new_type=data.get('type'),
-                            new_subtype=data.get('subtype'), new_value=data.get('value'), new_note=data.get('note'))
+                           new_subtype=data.get('subtype'), new_value=data.get('value'), new_note=data.get('note'))
             return jsonify({'success': True})
 
         elif request.method == 'DELETE':
@@ -616,63 +615,6 @@ def api_training_types():
         return jsonify([])
 
 
-# ========== ЗБИТКИ (DAMAGES) ==========
-
-@app.route('/api/damages', methods=['GET', 'POST', 'DELETE'])
-def api_damages():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.add_damage(data['item_name'], data['cost'], data.get('category'), data.get('note'))
-            return jsonify({'success': True})
-        elif request.method == 'DELETE':
-            data = request.get_json()
-            db.delete_damage(data['id'])
-            return jsonify({'success': True})
-        else:
-            damages = db.get_damages(100)
-            stats = db.get_damages_stats(30)
-            return jsonify({'damages': damages, 'stats': stats})
-    except Exception as e:
-        return jsonify({'damages': [], 'stats': {'total': 0, 'count': 0}})
-
-
-# ========== ЗУМІСИ (ZOOMIES) ==========
-
-@app.route('/api/zoomies', methods=['GET', 'POST', 'DELETE'])
-def api_zoomies():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.add_zoomie(data['duration'], data.get('intensity', 3), data.get('note'))
-            return jsonify({'success': True})
-        elif request.method == 'DELETE':
-            data = request.get_json()
-            db.delete_zoomie(data['id'])
-            return jsonify({'success': True})
-        else:
-            zoomies = db.get_zoomies(100)
-            stats = db.get_zoomies_stats(30)
-            return jsonify({'zoomies': zoomies, 'stats': stats})
-    except Exception as e:
-        return jsonify({'zoomies': [], 'stats': {'count': 0, 'avg_duration': 0}})
-
-
-# ========== КАРАНТИН (QUARANTINE) ==========
-
-@app.route('/api/quarantine', methods=['GET', 'POST'])
-def api_quarantine():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.set_last_vaccination(data['vaccination_date'])
-            return jsonify({'success': True})
-        else:
-            return jsonify(db.get_quarantine_status())
-    except Exception as e:
-        return jsonify({'in_quarantine': False, 'days_left': 0, 'message': 'Помилка'})
-
-
 # ========== МЕНТАЛЬНА АКТИВНІСТЬ ==========
 
 @app.route('/api/mental')
@@ -693,9 +635,7 @@ def api_mental():
             'avg_mental': round(avg, 1)
         })
     except Exception as e:
-        return jsonify(
-            {'dates': [], 'durations': [], 'activities': [], 'types': [], 'potty_types': [], 'potty_counts': [],
-             'avg_mental': 0})
+        return jsonify({'dates': [], 'durations': [], 'activities': [], 'types': [], 'potty_types': [], 'potty_counts': [], 'avg_mental': 0})
 
 
 @app.route('/api/mental/<int:activity_id>', methods=['PUT', 'DELETE'])
@@ -762,8 +702,7 @@ def api_add_reminder():
         if not data or not data.get('title'):
             return jsonify({'success': False, 'error': 'Missing title'})
         interval = int(data['interval_days']) if data.get('interval_days') else 0
-        db.add_medical_reminder(data['title'], data.get('description', ''), interval,
-                                data.get('reminder_time', '09:00'))
+        db.add_medical_reminder(data['title'], data.get('description', ''), interval, data.get('reminder_time', '09:00'))
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Add reminder error: {e}")
@@ -863,8 +802,7 @@ def api_update_measurement(measurement_id):
                 new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
             db.update_body_measurement(measurement_id, neck_cm=data.get('neck_cm'), chest_cm=data.get('chest_cm'),
                                        waist_cm=data.get('waist_cm'), length_cm=data.get('length_cm'),
-                                       height_cm=data.get('height_cm'), note=data.get('note'),
-                                       new_timestamp=new_timestamp)
+                                       height_cm=data.get('height_cm'), note=data.get('note'), new_timestamp=new_timestamp)
             return jsonify({'success': True})
         elif request.method == 'DELETE':
             db.delete_body_measurement(measurement_id)
@@ -897,32 +835,23 @@ def api_report():
 @app.route('/api/report/week')
 def api_report_week():
     try:
-        report = db.get_full_report(7)
-        damages = db.get_damages_stats(7)
-        zoomies = db.get_zoomies_stats(7)
-        return jsonify({
-            **report,
-            'damages_total': damages['total'],
-            'damages_count': damages['count'],
-            'zoomies_count': zoomies['count'],
-            'zoomies_avg_duration': zoomies['avg_duration']
-        })
+        return jsonify(db.get_full_report(7))
     except Exception as e:
         return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0,
-                        'mental_minutes': 0, 'training_count': 0, 'training_avg': 0, 'behavior': 0,
-                        'damages_total': 0, 'damages_count': 0, 'zoomies_count': 0, 'zoomies_avg_duration': 0})
+                        'mental_minutes': 0, 'training_count': 0, 'training_avg': 0, 'behavior': 0})
 
 
 @app.route('/api/send_report', methods=['POST'])
 def api_send_report():
+    """Надсилання тижневого звіту з графіком"""
     try:
         pet_name = db.get_setting('pet_name', 'Айла')
         report = db.get_full_report(7)
-        damages = db.get_damages_stats(7)
-        zoomies = db.get_zoomies_stats(7)
         weekly_data = db.get_weekly_chart_data()
 
-        text = build_weekly_report_text(report, pet_name, damages, zoomies)
+        text = build_weekly_report_text(report, pet_name)
+
+        # Генеруємо графік
         chart_bytes = generate_weekly_chart(weekly_data)
 
         recipients = [None] + [g['chat_id'] for g in db.get_group_chats()]
@@ -946,6 +875,7 @@ def api_send_report():
 
 @app.route('/api/send_daily_report', methods=['POST'])
 def api_send_daily_report():
+    """Надсилання денного звіту"""
     try:
         data = request.get_json()
         date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
@@ -976,12 +906,6 @@ def api_insight():
         insight = f"📊 Прогрес: {stats['feed']}/{planned_meals} годів ({feed_percent}%), {stats['walk_minutes']} хв прогулянок."
         if stats['walk_minutes'] > safe:
             insight += f" ⚠️ Ліміт прогулянки {safe} хв."
-
-        # Додаємо статус карантину
-        quarantine = db.get_quarantine_status()
-        if quarantine['in_quarantine']:
-            insight += f" 🚨 Карантин: {quarantine['days_left']} днів."
-
         return jsonify({'insight': insight})
     except Exception as e:
         return jsonify({'insight': '🐾 Вітаємо! Система працює.'})
@@ -1016,8 +940,7 @@ def api_test_telegram():
         if not token or not chat_id:
             return jsonify({'message': '❌ Введіть Bot Token та Chat ID'})
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        response = requests.post(url, json={'chat_id': chat_id, 'text': '🐾 Тестове повідомлення від Ayla Tracker! ✅'},
-                                 timeout=10)
+        response = requests.post(url, json={'chat_id': chat_id, 'text': '🐾 Тестове повідомлення від Ayla Tracker! ✅'}, timeout=10)
         if response.status_code == 200:
             db.set_setting('telegram_bot_token', token)
             db.set_setting('telegram_chat_id', chat_id)
@@ -1035,7 +958,7 @@ def api_vaccinations():
         if request.method == 'POST':
             data = request.get_json()
             db.add_vaccination(data['vaccine_name'], data['vaccine_date'], data.get('next_due'),
-                               data.get('series'), data.get('vet_name'), data.get('clinic_name'), data.get('notes'))
+                              data.get('series'), data.get('vet_name'), data.get('clinic_name'), data.get('notes'))
             return jsonify({'success': True})
         return jsonify(db.get_vaccinations())
     except Exception as e:
@@ -1048,8 +971,7 @@ def api_parasite_treatments():
         if request.method == 'POST':
             data = request.get_json()
             db.add_parasite_treatment(data['name'], data['treatment_date'], data.get('next_due'),
-                                      data.get('parasite_type'), data.get('medication'), data.get('dosage'),
-                                      data.get('notes'))
+                                     data.get('parasite_type'), data.get('medication'), data.get('dosage'), data.get('notes'))
             return jsonify({'success': True})
         return jsonify(db.get_parasite_treatments())
     except Exception as e:
@@ -1062,7 +984,7 @@ def api_dental_history():
         if request.method == 'POST':
             data = request.get_json()
             db.add_dental_procedure(data['procedure_date'], data['procedure_type'], data.get('vet_name'),
-                                    data.get('notes'), data.get('next_due'))
+                                   data.get('notes'), data.get('next_due'))
             return jsonify({'success': True})
         return jsonify(db.get_dental_history())
     except Exception as e:
@@ -1074,8 +996,7 @@ def api_family_members():
     try:
         if request.method == 'POST':
             data = request.get_json()
-            db.add_family_member(data['name'], data.get('role', 'member'), data.get('chat_id'),
-                                 data.get('notify', True))
+            db.add_family_member(data['name'], data.get('role', 'member'), data.get('chat_id'), data.get('notify', True))
             return jsonify({'success': True})
         elif request.method == 'DELETE':
             data = request.get_json()
