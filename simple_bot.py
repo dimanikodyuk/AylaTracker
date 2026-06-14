@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Telegram Bot (Python 3.13 сумісна версія)
+Ayla Tracker - Telegram Bot (оновлена версія з груповими чатами)
 """
 
 import logging
 import os
 import time
 import threading
-import asyncio
-from datetime import datetime, time as dt_time, timedelta
+from datetime import datetime, time as dt_time
 from dotenv import load_dotenv
 import database as db
 import requests
@@ -17,17 +16,16 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Простий HTTP API замість python-telegram-bot
 TELEGRAM_API_URL = "https://api.telegram.org/bot"
 
-# Google Calendar інтеграція
+# Google Calendar інтеграція (опціонально)
 try:
-    from google_calendar import calendar as gc_calendar, setup_google_calendar as gc_setup
+    from google_calendar import calendar as gc_calendar
 
     GOOGLE_CALENDAR_AVAILABLE = True
 except ImportError:
     GOOGLE_CALENDAR_AVAILABLE = False
-    logger.warning("Google Calendar не доступний. Встановіть google-api-python-client")
+    logger.warning("Google Calendar не доступний")
 
 
 class SimpleTelegramBot:
@@ -39,17 +37,12 @@ class SimpleTelegramBot:
         self.user_data = {}
 
     def send_message(self, chat_id, text, reply_markup=None, parse_mode=None):
-        """Відправка повідомлення"""
         url = self.base_url + "sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text
-        }
+        payload = {"chat_id": chat_id, "text": text}
         if parse_mode:
             payload["parse_mode"] = parse_mode
         if reply_markup:
             payload["reply_markup"] = reply_markup
-
         try:
             response = requests.post(url, json=payload, timeout=10)
             return response.json()
@@ -57,13 +50,21 @@ class SimpleTelegramBot:
             logger.error(f"Send message error: {e}")
             return None
 
+    def send_photo(self, chat_id, photo_url, caption=None):
+        url = self.base_url + "sendPhoto"
+        payload = {"chat_id": chat_id, "photo": photo_url}
+        if caption:
+            payload["caption"] = caption
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Send photo error: {e}")
+            return None
+
     def get_updates(self):
-        """Отримання оновлень"""
         url = self.base_url + "getUpdates"
-        payload = {
-            "offset": self.offset,
-            "timeout": 30
-        }
+        payload = {"offset": self.offset, "timeout": 30}
         try:
             response = requests.get(url, params=payload, timeout=35)
             data = response.json()
@@ -74,7 +75,6 @@ class SimpleTelegramBot:
         return []
 
     def answer_callback(self, callback_id, text=None):
-        """Відповідь на callback"""
         url = self.base_url + "answerCallbackQuery"
         payload = {"callback_query_id": callback_id}
         if text:
@@ -85,6 +85,8 @@ class SimpleTelegramBot:
             logger.error(f"Answer callback error: {e}")
 
 
+# ========== КЛАВІАТУРИ ==========
+
 def get_main_keyboard():
     return {
         "keyboard": [
@@ -92,11 +94,26 @@ def get_main_keyboard():
             ["🚶 Почати прогулянку", "⏰ Закінчити прогулянку"],
             ["😴 Почати сон", "⏰ Закінчити сон"],
             ["🧠 Ментальне", "🏋️ Тренування", "⚖️ Вага"],
-            ["📊 Статистика", "📈 Звіт", "📅 Google Calendar"],
-            ["ℹ️ Допомога"]
+            ["⚠️ Поведінка", "📊 Статистика", "📈 Звіт"],
+            ["📅 Google Calendar", "ℹ️ Допомога"]
         ],
         "resize_keyboard": True
     }
+
+
+def get_behavior_keyboard():
+    behaviors = db.get_behavior_types()
+    keyboard = []
+    row = []
+    for i, b in enumerate(behaviors):
+        row.append({"text": f"{b['icon']} {b['name']}", "callback_data": f"behavior_{b['id']}"})
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([{"text": "❌ Скасувати", "callback_data": "cancel"}])
+    return {"inline_keyboard": keyboard}
 
 
 def get_potty_cue_keyboard():
@@ -112,40 +129,47 @@ def get_potty_cue_keyboard():
 
 
 def get_training_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "🐕 Сідати", "callback_data": "training_sit"}],
-            [{"text": "😴 Лежати", "callback_data": "training_down"}],
-            [{"text": "🚶 Поруч", "callback_data": "training_heel"}],
-            [{"text": "🖐️ Дай лапу", "callback_data": "training_paw"}]
-        ]
-    }
+    types = db.get_training_types()
+    keyboard = []
+    row = []
+    for i, t in enumerate(types):
+        row.append({"text": f"{t['icon']} {t['name']}", "callback_data": f"training_{t['id']}"})
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([{"text": "➕ Додати нову команду", "callback_data": "add_training_type"}])
+    return {"inline_keyboard": keyboard}
 
 
 def get_mental_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "🧩 Головоломка", "callback_data": "mental_puzzle"}],
-            [{"text": "🔍 Пошук ласощів", "callback_data": "mental_scent"}],
-            [{"text": "🎓 Вивчення трюків", "callback_data": "mental_shaping"}],
-            [{"text": "👃 Нюхальний килимок", "callback_data": "mental_sniffing"}]
-        ]
-    }
+    types = db.get_mental_types()
+    keyboard = []
+    row = []
+    for i, t in enumerate(types):
+        row.append({"text": f"{t['icon']} {t['name']}", "callback_data": f"mental_{t['id']}"})
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([{"text": "➕ Додати нову активність", "callback_data": "add_mental_type"}])
+    return {"inline_keyboard": keyboard}
 
 
-def get_rate_keyboard(command):
+def get_rate_keyboard(command_id, command_name):
     return {
         "inline_keyboard": [
-            [{"text": "✅ Відмінно (5)", "callback_data": f"rate_5_{command}"}],
-            [{"text": "👍 Добре (4)", "callback_data": f"rate_4_{command}"}],
-            [{"text": "😐 Задовільно (3)", "callback_data": f"rate_3_{command}"}],
-            [{"text": "❌ Погано (1)", "callback_data": f"rate_1_{command}"}]
+            [{"text": "✅ Відмінно (5)", "callback_data": f"rate_5_{command_id}"}],
+            [{"text": "👍 Добре (4)", "callback_data": f"rate_4_{command_id}"}],
+            [{"text": "😐 Задовільно (3)", "callback_data": f"rate_3_{command_id}"}],
+            [{"text": "❌ Погано (1)", "callback_data": f"rate_1_{command_id}"}]
         ]
     }
 
 
 def get_calendar_keyboard():
-    """Клавіатура для Google Calendar"""
     return {
         "inline_keyboard": [
             [{"text": "🔄 Синхронізувати нагадування", "callback_data": "calendar_sync"}],
@@ -157,13 +181,16 @@ def get_calendar_keyboard():
     }
 
 
-def handle_message(bot, chat_id, text, user_data):
-    """Обробка текстових повідомлень"""
+# ========== ОБРОБКА ПОВІДОМЛЕНЬ ==========
 
+def handle_message(bot, chat_id, text, user_data):
     # Їжа
     if text == "🍖 Їжа":
         db.add_event("feed", note="🍖 Годування")
         bot.send_message(chat_id, "✅ Записано годування!")
+        # Нагадування про туалет
+        remind_minutes = int(db.get_setting('potty_reminder_minutes', 25))
+        threading.Timer(remind_minutes * 60, send_potty_reminder, args=[chat_id]).start()
 
     # Туалет
     elif text == "💧 Піся":
@@ -198,6 +225,11 @@ def handle_message(bot, chat_id, text, user_data):
         bot.send_message(chat_id, "⚖️ Надішліть вагу Айли в кг (наприклад: 4.5)")
         user_data['awaiting_weight'] = True
 
+    # Поведінка
+    elif text == "⚠️ Поведінка":
+        keyboard = get_behavior_keyboard()
+        bot.send_message(chat_id, "⚠️ Оберіть тип поведінки:", reply_markup=keyboard)
+
     # Ментальне
     elif text == "🧠 Ментальне":
         bot.send_message(chat_id, "🧠 Оберіть тип активності:", reply_markup=get_mental_keyboard())
@@ -209,20 +241,10 @@ def handle_message(bot, chat_id, text, user_data):
     # Google Calendar
     elif text == "📅 Google Calendar":
         if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-            bot.send_message(
-                chat_id,
-                "📅 <b>Google Calendar</b>\n\n"
-                "Оберіть дію:",
-                reply_markup=get_calendar_keyboard(),
-                parse_mode="HTML"
-            )
+            bot.send_message(chat_id, "📅 <b>Google Calendar</b>\n\nОберіть дію:", reply_markup=get_calendar_keyboard(),
+                             parse_mode="HTML")
         else:
-            from google_calendar import setup_google_calendar
-            bot.send_message(
-                chat_id,
-                setup_google_calendar(),
-                parse_mode="HTML"
-            )
+            bot.send_message(chat_id, "❌ Google Calendar не налаштовано. Потрібен файл credentials.json")
 
     # Статистика
     elif text == "📊 Статистика":
@@ -232,7 +254,8 @@ def handle_message(bot, chat_id, text, user_data):
                          f"🍖 Годувань: {stats['feed']}\n"
                          f"🚶 Прогулянок: {stats['walk_minutes']} хв\n"
                          f"😴 Сну: {stats['sleep_hours']} год\n"
-                         f"🚽 Туалет: {stats['toilet']}",
+                         f"🚽 Туалет: {stats['toilet']}\n"
+                         f"⚠️ Поведінка: {stats['behavior']}",
                          parse_mode="HTML")
 
     # Звіт
@@ -244,6 +267,7 @@ def handle_message(bot, chat_id, text, user_data):
                          f"🚶 Прогулянок: {report['walk_minutes']} хв\n"
                          f"😴 Сну: {report['sleep_hours']} год\n"
                          f"🚽 Туалет: {report['toilet']}\n"
+                         f"⚠️ Поведінка: {report['behavior']}\n"
                          f"🧠 Ментальне: {report['mental_minutes']} хв\n"
                          f"🏋️ Тренувань: {report['training_count']} (усп. {report['training_avg']}/5)",
                          parse_mode="HTML")
@@ -251,20 +275,22 @@ def handle_message(bot, chat_id, text, user_data):
     # Допомога
     elif text == "ℹ️ Допомога":
         bot.send_message(chat_id,
-                         "📖 <b>Довідка</b>\n\n"
-                         "• 🍖 Їжа - запис годування\n"
-                         "• 🚶 Прогулянка - таймер\n"
-                         "• 😴 Сон - таймер сну\n"
-                         "• 💧 Піся/💩 Кака - запис туалету\n"
-                         "• 🧠 Ментальне - інтелектуальні ігри\n"
-                         "• 🏋️ Тренування - навчання команд\n"
-                         "• ⚖️ Вага - контроль розвитку\n"
-                         "• 📅 Google Calendar - синхронізація з календарем\n\n"
+                         "📖 <b>Довідка Ayla Tracker</b>\n\n"
+                         "🍖 Їжа - запис годування\n"
+                         "🚶 Прогулянка - таймер з безпечним лімітом\n"
+                         "😴 Сон - таймер сну\n"
+                         "💧 Піся/💩 Кака - запис туалету з маркерами\n"
+                         "⚠️ Поведінка - запис проблемної поведінки\n"
+                         "🧠 Ментальне - інтелектуальні ігри\n"
+                         "🏋️ Тренування - навчання команд\n"
+                         "⚖️ Вага - контроль розвитку\n"
+                         "📅 Google Calendar - синхронізація (опціонально)\n\n"
                          "📊 <b>Команди:</b>\n"
                          "/start - Головне меню\n"
                          "/myid - Отримати Chat ID\n"
                          "/stats - Детальна статистика\n"
-                         "/reminders - Мої нагадування",
+                         "/reminders - Мої нагадування\n"
+                         "/group - Додати цей чат як груповий",
                          parse_mode="HTML")
 
     # Обробка ваги
@@ -278,102 +304,11 @@ def handle_message(bot, chat_id, text, user_data):
         except ValueError:
             bot.send_message(chat_id, "❌ Надішліть число (наприклад: 4.5)")
 
-    # Обробка часу для годування в календарі
-    elif user_data.get('awaiting_feed_time'):
-        try:
-            hour, minute = map(int, text.split(':'))
-            feed_time = dt_time(hour, minute)
-            user_data['feed_time'] = feed_time
-            bot.send_message(chat_id, "🍖 Введіть номер годування (1-4):")
-            user_data['awaiting_feed_time'] = False
-            user_data['awaiting_feed_number'] = True
-        except:
-            bot.send_message(chat_id, "❌ Неправильний формат. Використовуйте ГГ:ХХ")
-
-    # Обробка номера годування
-    elif user_data.get('awaiting_feed_number'):
-        try:
-            meal_num = int(text)
-            if 1 <= meal_num <= 4:
-                feed_time = user_data.get('feed_time')
-                if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-                    link = gc_calendar.add_feeding_reminder(feed_time, meal_num)
-                    if link:
-                        bot.send_message(chat_id, f"✅ Годування додано в календар!\n{link}")
-                    else:
-                        bot.send_message(chat_id, "❌ Помилка додавання в календар")
-                else:
-                    bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
-            else:
-                bot.send_message(chat_id, "❌ Введіть число від 1 до 4")
-            user_data['awaiting_feed_number'] = False
-            user_data['feed_time'] = None
-        except:
-            bot.send_message(chat_id, "❌ Введіть число")
-
-    # Обробка часу для прогулянки
-    elif user_data.get('awaiting_walk_time'):
-        try:
-            hour, minute = map(int, text.split(':'))
-            walk_time = dt_time(hour, minute)
-            if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-                link = gc_calendar.add_walk_reminder(walk_time)
-                if link:
-                    bot.send_message(chat_id, f"✅ Прогулянку додано в календар!\n{link}")
-                else:
-                    bot.send_message(chat_id, "❌ Помилка додавання в календар")
-            else:
-                bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
-            user_data['awaiting_walk_time'] = False
-        except:
-            bot.send_message(chat_id, "❌ Неправильний формат. Використовуйте ГГ:ХХ")
-            user_data['awaiting_walk_time'] = False
-
-    # Обробка назви ліків
-    elif user_data.get('awaiting_med_name'):
-        user_data['med_name'] = text
-        bot.send_message(chat_id, "💊 Введіть дозування (наприклад: 1 таблетка)")
-        user_data['awaiting_med_name'] = False
-        user_data['awaiting_med_dosage'] = True
-
-    # Обробка дозування ліків
-    elif user_data.get('awaiting_med_dosage'):
-        user_data['med_dosage'] = text
-        bot.send_message(chat_id, "⏰ Введіть час прийому (ГГ:ХХ)")
-        user_data['awaiting_med_dosage'] = False
-        user_data['awaiting_med_time'] = True
-
-    # Обробка часу прийому ліків
-    elif user_data.get('awaiting_med_time'):
-        try:
-            hour, minute = map(int, text.split(':'))
-            med_time = dt_time(hour, minute)
-            med_name = user_data.get('med_name')
-            med_dosage = user_data.get('med_dosage')
-
-            if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-                link = gc_calendar.add_medication_reminder(med_name, med_time, med_dosage)
-                if link:
-                    bot.send_message(chat_id, f"✅ Нагадування про ліки додано в календар!\n{link}")
-                else:
-                    bot.send_message(chat_id, "❌ Помилка додавання в календар")
-            else:
-                bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
-
-            user_data['awaiting_med_time'] = False
-            user_data['med_name'] = None
-            user_data['med_dosage'] = None
-        except:
-            bot.send_message(chat_id, "❌ Неправильний формат. Використовуйте ГГ:ХХ")
-            user_data['awaiting_med_time'] = False
-
     else:
         bot.send_message(chat_id, "❓ Невідома команда", reply_markup=get_main_keyboard())
 
 
 def handle_callback(bot, chat_id, callback_id, data, user_data):
-    """Обробка callback запитів"""
-
     # Маркери туалету
     if data.startswith("cue_"):
         cue_map = {
@@ -385,35 +320,63 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
         bot.answer_callback(callback_id, f"🔍 Записано маркер: {cue_type}")
         bot.send_message(chat_id, f"🔍 Записано маркер: {cue_type}")
 
+    # Поведінка
+    elif data.startswith("behavior_"):
+        behavior_id = int(data.split('_')[1])
+        behaviors = {b['id']: b for b in db.get_behavior_types()}
+        behavior = behaviors.get(behavior_id)
+        if behavior:
+            db.add_behavior(behavior['name'], behavior['severity'])
+            bot.answer_callback(callback_id, f"⚠️ Записано: {behavior['name']}")
+            bot.send_message(chat_id, f"⚠️ Записано поведінку: {behavior['icon']} {behavior['name']}")
+        else:
+            bot.answer_callback(callback_id, "❌ Помилка")
+
     # Вибір команди для тренування
     elif data.startswith("training_"):
-        cmd_map = {
-            "training_sit": "Сідати", "training_down": "Лежати",
-            "training_heel": "Поруч", "training_paw": "Дай лапу"
-        }
-        command = cmd_map.get(data, "Сідати")
+        training_id = int(data.split('_')[1])
+        types = {t['id']: t for t in db.get_training_types()}
+        training = types.get(training_id)
+        if training:
+            user_data['training_command_id'] = training_id
+            user_data['training_command_name'] = training['name']
+            bot.answer_callback(callback_id)
+            bot.send_message(chat_id, f"Оцініть виконання '{training['name']}':",
+                             reply_markup=get_rate_keyboard(training_id, training['name']))
+
+    # Додати тип тренування
+    elif data == "add_training_type":
         bot.answer_callback(callback_id)
-        bot.send_message(chat_id, f"Оцініть виконання '{command}':", reply_markup=get_rate_keyboard(command))
+        bot.send_message(chat_id, "📝 Введіть назву нової команди (наприклад: Апорт)")
+        user_data['awaiting_new_training'] = True
+
+    # Додати тип ментальної активності
+    elif data == "add_mental_type":
+        bot.answer_callback(callback_id)
+        bot.send_message(chat_id, "📝 Введіть назву нової ментальної активності (наприклад: Лабіринт)")
+        user_data['awaiting_new_mental'] = True
 
     # Оцінка тренування
     elif data.startswith("rate_"):
-        parts = data.split("_")
+        parts = data.split('_')
         rate = int(parts[1])
-        command = "_".join(parts[2:]) if len(parts) > 2 else "Сідати"
-        db.add_training(command, 10, rate)
+        training_id = int(parts[2]) if len(parts) > 2 else None
+        command_name = user_data.get('training_command_name', 'Тренування')
+        db.add_training(command_name, 10, rate)
         bot.answer_callback(callback_id, f"✅ Записано!")
-        bot.send_message(chat_id, f"✅ Записано тренування: {command} (оцінка {rate}/5)")
+        bot.send_message(chat_id, f"✅ Записано тренування: {command_name} (оцінка {rate}/5)")
+        user_data['training_command_id'] = None
+        user_data['training_command_name'] = None
 
-    # Ментальна активність
+    # Вибір ментальної активності
     elif data.startswith("mental_"):
-        act_map = {
-            "mental_puzzle": "Головоломка", "mental_scent": "Пошук ласощів",
-            "mental_shaping": "Вивчення трюків", "mental_sniffing": "Нюхальний килимок"
-        }
-        activity = act_map.get(data, "Активність")
-        db.add_mental_activity(activity, 15, 3)
-        bot.answer_callback(callback_id, f"🧠 Записано!")
-        bot.send_message(chat_id, f"🧠 Записано ментальну активність: {activity} (15 хв)")
+        mental_id = int(data.split('_')[1])
+        types = {t['id']: t for t in db.get_mental_types()}
+        mental = types.get(mental_id)
+        if mental:
+            bot.answer_callback(callback_id)
+            bot.send_message(chat_id, f"🧠 Введіть тривалість активності '{mental['name']}' (хв):")
+            user_data['awaiting_mental_duration'] = mental_id
 
     # Google Calendar дії
     elif data == "calendar_sync":
@@ -422,7 +385,7 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
             gc_calendar.sync_reminders()
             bot.send_message(chat_id, "✅ Всі нагадування синхронізовано з Google Calendar!")
         else:
-            bot.send_message(chat_id, "❌ Google Calendar не налаштовано. Використайте /setup_calendar")
+            bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
 
     elif data == "calendar_add_feed":
         bot.answer_callback(callback_id)
@@ -449,7 +412,6 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
                 message = "📅 <b>Найближчі події:</b>\n\n"
                 for event in events[:5]:
                     start = event['start'].get('dateTime', event['start'].get('date'))
-                    # Форматуємо дату
                     if 'T' in start:
                         start_date = start.split('T')[0]
                         start_time = start.split('T')[1][:5]
@@ -461,6 +423,40 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
         else:
             bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
 
+    elif data == "cancel":
+        bot.answer_callback(callback_id)
+        bot.send_message(chat_id, "❌ Дію скасовано", reply_markup=get_main_keyboard())
+
+
+def send_potty_reminder(chat_id):
+    try:
+        token = db.get_setting('telegram_bot_token')
+        if token:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            requests.post(url, json={
+                'chat_id': chat_id,
+                'text': "⏱️ Айла поїла ~20 хв тому. Час вийти на прогулянку, щоб підтримати чисту поведінку вдома!"
+            })
+    except Exception as e:
+        logger.error(f"Помилка нагадування: {e}")
+
+
+def check_reminders_loop(bot):
+    """Фонова перевірка нагадувань"""
+    while True:
+        time.sleep(3600)  # Перевіряємо кожну годину
+        try:
+            due_reminders = db.get_due_medical_reminders()
+            for r in due_reminders:
+                msg = f"💊 <b>{r['title']}</b>\n\n{r.get('description', '')}\n\n⏰ Час виконання: {r.get('reminder_time', '09:00')}"
+                admin_chat = db.get_setting('telegram_chat_id')
+                if admin_chat:
+                    bot.send_message(admin_chat, msg, parse_mode="HTML")
+                for group in db.get_group_chats():
+                    bot.send_message(group['chat_id'], msg, parse_mode="HTML")
+        except Exception as e:
+            logger.error(f"Reminders check error: {e}")
+
 
 def run_bot():
     token = os.getenv('BOT_TOKEN')
@@ -471,19 +467,9 @@ def run_bot():
     db.init_db()
     bot = SimpleTelegramBot(token)
 
-    # Ініціалізація Google Calendar
-    if GOOGLE_CALENDAR_AVAILABLE:
-        try:
-            from google_calendar import calendar as gc_calendar
-            if gc_calendar and gc_calendar.service:
-                logger.info("✅ Google Calendar підключено")
-        except Exception as e:
-            logger.warning(f"Google Calendar не доступний: {e}")
-
-    # Відправка привітання адміну
-    admin_chat_id = db.get_setting('telegram_chat_id')
-    if admin_chat_id:
-        bot.send_message(admin_chat_id, "🐾 Бот Ayla Tracker запущено!", reply_markup=get_main_keyboard())
+    # Запускаємо перевірку нагадувань
+    reminder_thread = threading.Thread(target=check_reminders_loop, args=(bot,), daemon=True)
+    reminder_thread.start()
 
     logger.info("🚀 Бот запущено!")
 
@@ -498,6 +484,11 @@ def run_bot():
                     message = update['message']
                     chat_id = message['chat']['id']
                     text = message.get('text', '')
+                    chat_type = message.get('chat', {}).get('type', 'private')
+
+                    # Додаємо груповий чат якщо це група
+                    if chat_type in ['group', 'supergroup']:
+                        db.add_group_chat(chat_id, message.get('chat', {}).get('title'))
 
                     # Обробка команди /start
                     if text == '/start':
@@ -509,8 +500,14 @@ def run_bot():
                                          f"Оберіть дію:",
                                          reply_markup=get_main_keyboard(),
                                          parse_mode='HTML')
+
                     elif text == '/myid':
                         bot.send_message(chat_id, f"🆔 Ваш Chat ID: `{chat_id}`", parse_mode='Markdown')
+
+                    elif text == '/group':
+                        db.add_group_chat(chat_id, message.get('chat', {}).get('title'))
+                        bot.send_message(chat_id, "✅ Цей чат додано як груповий! Я буду надсилати сюди сповіщення.")
+
                     elif text == '/stats':
                         report = db.get_full_report(30)
                         bot.send_message(chat_id,
@@ -519,17 +516,46 @@ def run_bot():
                                          f"🚶 Прогулянок: {report['walk_minutes']} хв\n"
                                          f"😴 Сну: {report['sleep_hours']} год\n"
                                          f"🚽 Туалет: {report['toilet']}\n"
+                                         f"⚠️ Поведінка: {report['behavior']}\n"
                                          f"🧠 Ментальне: {report['mental_minutes']} хв",
                                          parse_mode="HTML")
+
                     elif text == '/reminders':
                         reminders = db.get_medical_reminders()
                         if not reminders:
                             bot.send_message(chat_id, "📭 Немає активних нагадувань")
                         else:
-                            message = "💊 <b>Ваші нагадування:</b>\n\n"
+                            message_text = "💊 <b>Ваші нагадування:</b>\n\n"
                             for r in reminders[:10]:
-                                message += f"• {r['title']}\n  ⏰ {r['next_due_str']}\n\n"
-                            bot.send_message(chat_id, message, parse_mode="HTML")
+                                message_text += f"• {r['title']}\n  ⏰ {r['next_due_str']} о {r.get('reminder_time', '09:00')}\n\n"
+                            bot.send_message(chat_id, message_text, parse_mode="HTML")
+
+                    # Додавання нового типу тренування
+                    elif user_data.get('awaiting_new_training'):
+                        db.add_training_type(text)
+                        bot.send_message(chat_id, f"✅ Додано нову команду: {text}")
+                        user_data['awaiting_new_training'] = False
+
+                    # Додавання нового типу ментальної активності
+                    elif user_data.get('awaiting_new_mental'):
+                        db.add_mental_type(text)
+                        bot.send_message(chat_id, f"✅ Додано нову активність: {text}")
+                        user_data['awaiting_new_mental'] = False
+
+                    # Тривалість ментальної активності
+                    elif user_data.get('awaiting_mental_duration'):
+                        try:
+                            duration = int(text)
+                            mental_id = user_data['awaiting_mental_duration']
+                            types = {t['id']: t for t in db.get_mental_types()}
+                            mental = types.get(mental_id)
+                            if mental:
+                                db.add_mental_activity(mental['name'], duration, 3)
+                                bot.send_message(chat_id, f"🧠 Записано: {mental['name']} ({duration} хв)")
+                            user_data['awaiting_mental_duration'] = None
+                        except ValueError:
+                            bot.send_message(chat_id, "❌ Введіть число (хвилини)")
+
                     elif not text.startswith('/'):
                         if chat_id not in user_data:
                             user_data[chat_id] = {}
@@ -545,7 +571,6 @@ def run_bot():
                         user_data[chat_id] = {}
                     handle_callback(bot, chat_id, callback_id, data, user_data[chat_id])
 
-                # Оновлюємо offset
                 if 'update_id' in update:
                     bot.offset = update['update_id'] + 1
 

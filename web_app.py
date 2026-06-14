@@ -3,10 +3,11 @@
 Ayla Tracker - Web Dashboard (оновлена версія з новими функціями)
 """
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 from datetime import datetime, timedelta
 import os
 import time
+import json
 from dotenv import load_dotenv
 import requests
 import logging
@@ -70,19 +71,37 @@ def serve_static(filename):
     return send_from_directory(CURRENT_DIR, filename)
 
 
-def send_telegram(message):
+def send_telegram(message, chat_id=None, parse_mode='HTML'):
     token = db.get_setting('telegram_bot_token', TELEGRAM_BOT_TOKEN)
-    chat_id = db.get_setting('telegram_chat_id', TELEGRAM_CHAT_ID)
-    if not token or not chat_id:
+    target_chat = chat_id or db.get_setting('telegram_chat_id', TELEGRAM_CHAT_ID)
+    if not token or not target_chat:
         return False
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        requests.post(url, json={'chat_id': chat_id, 'text': message, 'parse_mode': 'HTML'}, timeout=10)
+        requests.post(url, json={'chat_id': target_chat, 'text': message, 'parse_mode': parse_mode}, timeout=10)
         return True
     except Exception as e:
         logger.error(f"Telegram error: {e}")
         return False
 
+
+def send_telegram_photo(photo_url, caption, chat_id=None):
+    """Відправка фото в Telegram"""
+    token = db.get_setting('telegram_bot_token', TELEGRAM_BOT_TOKEN)
+    target_chat = chat_id or db.get_setting('telegram_chat_id', TELEGRAM_CHAT_ID)
+    if not token or not target_chat:
+        return False
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+        requests.post(url, json={'chat_id': target_chat, 'photo': photo_url, 'caption': caption, 'parse_mode': 'HTML'},
+                      timeout=10)
+        return True
+    except Exception as e:
+        logger.error(f"Telegram photo error: {e}")
+        return False
+
+
+# ========== ОСНОВНІ API ==========
 
 @app.route('/api/stats')
 def api_stats():
@@ -93,13 +112,15 @@ def api_stats():
             'walk_seconds': stats.get('walk_seconds', 0),
             'sleep_seconds': stats.get('sleep_seconds', 0),
             'toilet': stats.get('toilet', 0),
+            'behavior': stats.get('behavior', 0),
             'pet_name': db.get_setting('pet_name', 'Айла'),
             'age_months': db.get_pet_age_months()
         })
     except Exception as e:
         logger.error(f"Stats error: {e}")
         return jsonify(
-            {'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'pet_name': 'Айла', 'age_months': 4})
+            {'feed': 0, 'walk_seconds': 0, 'sleep_seconds': 0, 'toilet': 0, 'behavior': 0, 'pet_name': 'Айла',
+             'age_months': 4})
 
 
 @app.route('/api/timeline')
@@ -128,6 +149,20 @@ def api_timeline():
         return jsonify({'events': [], 'date': datetime.now().strftime('%Y-%m-%d')})
 
 
+@app.route('/api/timeline_range')
+def api_timeline_range():
+    """Отримання подій за діапазон дат"""
+    try:
+        start_date = request.args.get('start_date', datetime.now().strftime('%Y-%m-%d'))
+        end_date = request.args.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+
+        events = db.get_events_by_date_range(start_date, end_date)
+        return jsonify({'events': events, 'start_date': start_date, 'end_date': end_date})
+    except Exception as e:
+        logger.error(f"Timeline range error: {e}")
+        return jsonify({'events': [], 'start_date': '', 'end_date': ''})
+
+
 @app.route('/api/weekly')
 def api_weekly():
     try:
@@ -140,7 +175,7 @@ def api_weekly():
 @app.route('/api/events')
 def api_events():
     try:
-        events = db.get_events_list(100)
+        events = db.get_events_list(200)
         for e in events:
             dt = datetime.fromtimestamp(e['timestamp'])
             e['time_str'] = dt.strftime('%d.%m.%Y')
@@ -153,9 +188,8 @@ def api_events():
         return jsonify([])
 
 
-@app.route('/api/event/<int:event_id>', methods=['GET', 'PUT'])
+@app.route('/api/event/<int:event_id>', methods=['GET', 'PUT', 'DELETE'])
 def api_event(event_id):
-    """Отримання або оновлення конкретної події"""
     try:
         if request.method == 'GET':
             event = db.get_event_by_id(event_id)
@@ -179,6 +213,10 @@ def api_event(event_id):
                 new_value=data.get('value'),
                 new_note=data.get('note')
             )
+            return jsonify({'success': True})
+
+        elif request.method == 'DELETE':
+            db.delete_event(event_id)
             return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Event API error: {e}")
@@ -205,6 +243,12 @@ def api_add_event():
             'toilet_pee': ('toilet', 'піся', '💧 Піся'),
             'toilet_poop': ('toilet', 'кака', '💩 Кака')
         }
+
+        # Обробка поведінки
+        if data['type'] == 'behavior':
+            db.add_behavior(data.get('subtype', 'Погана поведінка'), data.get('severity', 1), data.get('note'))
+            return jsonify({'success': True})
+
         if data['type'] in mapping:
             ev_type, subtype, note = mapping[data['type']]
             db.add_event(ev_type, subtype, note=note)
@@ -214,6 +258,17 @@ def api_add_event():
         logger.error(f"Add event error: {e}")
         return jsonify({'success': False})
 
+
+@app.route('/api/behavior_types')
+def api_behavior_types():
+    try:
+        return jsonify(db.get_behavior_types())
+    except Exception as e:
+        logger.error(f"Behavior types error: {e}")
+        return jsonify([])
+
+
+# ========== ПРОГУЛЯНКА ТА СОН ==========
 
 @app.route('/api/walk_status')
 def api_walk_status():
@@ -274,6 +329,8 @@ def api_stop_sleep():
         return jsonify({'success': False, 'duration': 0})
 
 
+# ========== ВАГА ==========
+
 @app.route('/api/weight')
 def api_weight():
     try:
@@ -283,7 +340,7 @@ def api_weight():
         return jsonify({
             'dates': [h['date'] for h in history],
             'weights': [h['weight'] for h in history],
-            'history': history[::-1][:10],
+            'history': history[::-1][:20],
             'daily_food': daily
         })
     except Exception as e:
@@ -291,17 +348,19 @@ def api_weight():
         return jsonify({'dates': [], 'weights': [], 'history': [], 'daily_food': 200})
 
 
-@app.route('/api/weight/<int:weight_id>', methods=['PUT'])
+@app.route('/api/weight/<int:weight_id>', methods=['PUT', 'DELETE'])
 def api_update_weight(weight_id):
-    """Оновлення запису ваги"""
     try:
-        data = request.get_json()
-        new_timestamp = None
-        if data.get('datetime'):
-            new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
-
-        db.update_weight_log(weight_id, data['weight'], new_timestamp)
-        return jsonify({'success': True})
+        if request.method == 'PUT':
+            data = request.get_json()
+            new_timestamp = None
+            if data.get('datetime'):
+                new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+            db.update_weight_log(weight_id, data['weight'], new_timestamp)
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            db.delete_weight_log(weight_id)
+            return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Update weight error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -318,38 +377,44 @@ def api_add_weight():
         return jsonify({'success': False})
 
 
+# ========== ТРЕНУВАННЯ ==========
+
 @app.route('/api/training')
 def api_training():
     try:
         stats = db.get_training_stats()
-        history = db.get_training_history(30)
+        history = db.get_training_history(50)
+        types = db.get_training_types()
         return jsonify({
             'commands': [s['command'] for s in stats],
             'scores': [s['avg_success'] for s in stats],
-            'history': history
+            'history': history,
+            'types': types
         })
     except Exception as e:
         logger.error(f"Training error: {e}")
-        return jsonify({'commands': [], 'scores': [], 'history': []})
+        return jsonify({'commands': [], 'scores': [], 'history': [], 'types': []})
 
 
-@app.route('/api/training/<int:training_id>', methods=['PUT'])
+@app.route('/api/training/<int:training_id>', methods=['PUT', 'DELETE'])
 def api_update_training(training_id):
-    """Оновлення запису тренування"""
     try:
-        data = request.get_json()
-        new_timestamp = None
-        if data.get('datetime'):
-            new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
-
-        db.update_training_log(
-            training_id,
-            new_command=data.get('command'),
-            new_duration=data.get('duration'),
-            new_success_rate=data.get('success_rate'),
-            new_timestamp=new_timestamp
-        )
-        return jsonify({'success': True})
+        if request.method == 'PUT':
+            data = request.get_json()
+            new_timestamp = None
+            if data.get('datetime'):
+                new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+            db.update_training_log(
+                training_id,
+                new_command=data.get('command'),
+                new_duration=data.get('duration'),
+                new_success_rate=data.get('success_rate'),
+                new_timestamp=new_timestamp
+            )
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            db.delete_training_log(training_id)
+            return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Update training error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -366,40 +431,63 @@ def api_add_training():
         return jsonify({'success': False})
 
 
+@app.route('/api/training_types', methods=['GET', 'POST'])
+def api_training_types():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_training_type(data['name'], data.get('icon', '🏋️'))
+            return jsonify({'success': True})
+        return jsonify(db.get_training_types())
+    except Exception as e:
+        logger.error(f"Training types error: {e}")
+        return jsonify([])
+
+
+# ========== МЕНТАЛЬНА АКТИВНІСТЬ ==========
+
 @app.route('/api/mental')
 def api_mental():
     try:
-        mental = db.get_mental_stats(7)
+        activities = db.get_mental_activities(50)
+        stats = db.get_mental_stats(7)
+        types = db.get_mental_types()
         potty = db.get_potty_stats()
-        avg = sum(m['duration'] for m in mental) / 7 if mental else 0
+        avg = sum(m['duration'] for m in stats) / 7 if stats else 0
         return jsonify({
-            'dates': [m['date'] for m in mental],
-            'durations': [m['duration'] for m in mental],
+            'dates': [m['date'] for m in stats],
+            'durations': [m['duration'] for m in stats],
+            'activities': activities,
+            'types': types,
             'potty_types': [p['type'] for p in potty],
             'potty_counts': [p['count'] for p in potty],
             'avg_mental': round(avg, 1)
         })
     except Exception as e:
         logger.error(f"Mental error: {e}")
-        return jsonify({'dates': [], 'durations': [], 'potty_types': [], 'potty_counts': [], 'avg_mental': 0})
+        return jsonify(
+            {'dates': [], 'durations': [], 'activities': [], 'types': [], 'potty_types': [], 'potty_counts': [],
+             'avg_mental': 0})
 
 
-@app.route('/api/mental/<int:activity_id>', methods=['PUT'])
+@app.route('/api/mental/<int:activity_id>', methods=['PUT', 'DELETE'])
 def api_update_mental(activity_id):
-    """Оновлення запису ментальної активності"""
     try:
-        data = request.get_json()
-        new_timestamp = None
-        if data.get('datetime'):
-            new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
-
-        db.update_mental_activity(
-            activity_id,
-            new_activity_type=data.get('activity_type'),
-            new_duration=data.get('duration'),
-            new_timestamp=new_timestamp
-        )
-        return jsonify({'success': True})
+        if request.method == 'PUT':
+            data = request.get_json()
+            new_timestamp = None
+            if data.get('datetime'):
+                new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+            db.update_mental_activity(
+                activity_id,
+                new_activity_type=data.get('activity_type'),
+                new_duration=data.get('duration'),
+                new_timestamp=new_timestamp
+            )
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            db.delete_mental_activity(activity_id)
+            return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Update mental error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -416,26 +504,47 @@ def api_add_mental():
         return jsonify({'success': False})
 
 
+@app.route('/api/mental_types', methods=['GET', 'POST'])
+def api_mental_types():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_mental_type(data['name'], data.get('icon', '🧠'))
+            return jsonify({'success': True})
+        return jsonify(db.get_mental_types())
+    except Exception as e:
+        logger.error(f"Mental types error: {e}")
+        return jsonify([])
+
+
+# ========== ЗДОРОВ'Я ==========
+
 @app.route('/api/health')
 def api_health():
     try:
         reminders = db.get_medical_reminders()
-        reminders = [r for r in reminders if r.get('title') and not str(r['title']).startswith('Тест')][:10]
+        due_reminders = db.get_due_medical_reminders()
         return jsonify({
             'reminders': reminders,
+            'due_reminders': due_reminders,
             'symptoms': db.get_symptoms(),
             'allergies': db.get_allergies()
         })
     except Exception as e:
         logger.error(f"Health error: {e}")
-        return jsonify({'reminders': [], 'symptoms': [], 'allergies': []})
+        return jsonify({'reminders': [], 'due_reminders': [], 'symptoms': [], 'allergies': []})
 
 
 @app.route('/api/add_reminder', methods=['POST'])
 def api_add_reminder():
     try:
         data = request.get_json()
-        db.add_medical_reminder(data['title'], data.get('description', ''), data['interval_days'])
+        db.add_medical_reminder(
+            data['title'],
+            data.get('description', ''),
+            data['interval_days'],
+            data.get('reminder_time', '09:00')
+        )
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Add reminder error: {e}")
@@ -486,6 +595,69 @@ def api_delete_allergy():
         return jsonify({'success': False})
 
 
+# ========== ПРОПОРЦІЇ (ЗАМІРИ ТІЛА) ==========
+
+@app.route('/api/measurements')
+def api_measurements():
+    try:
+        measurements = db.get_body_measurements(50)
+        trend = db.get_body_measurements_trend()
+        return jsonify({
+            'measurements': measurements,
+            'trend': trend
+        })
+    except Exception as e:
+        logger.error(f"Measurements error: {e}")
+        return jsonify({'measurements': [], 'trend': None})
+
+
+@app.route('/api/measurements', methods=['POST'])
+def api_add_measurement():
+    try:
+        data = request.get_json()
+        db.add_body_measurement(
+            neck_cm=data.get('neck_cm'),
+            chest_cm=data.get('chest_cm'),
+            waist_cm=data.get('waist_cm'),
+            length_cm=data.get('length_cm'),
+            height_cm=data.get('height_cm'),
+            note=data.get('note')
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Add measurement error: {e}")
+        return jsonify({'success': False})
+
+
+@app.route('/api/measurements/<int:measurement_id>', methods=['PUT', 'DELETE'])
+def api_update_measurement(measurement_id):
+    try:
+        if request.method == 'PUT':
+            data = request.get_json()
+            new_timestamp = None
+            if data.get('datetime'):
+                new_timestamp = int(datetime.strptime(data['datetime'], '%Y-%m-%dT%H:%M').timestamp())
+            db.update_body_measurement(
+                measurement_id,
+                neck_cm=data.get('neck_cm'),
+                chest_cm=data.get('chest_cm'),
+                waist_cm=data.get('waist_cm'),
+                length_cm=data.get('length_cm'),
+                height_cm=data.get('height_cm'),
+                note=data.get('note'),
+                new_timestamp=new_timestamp
+            )
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            db.delete_body_measurement(measurement_id)
+            return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Update measurement error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ========== ЗВІТИ ==========
+
 @app.route('/api/report')
 def api_report():
     try:
@@ -493,21 +665,97 @@ def api_report():
     except Exception as e:
         logger.error(f"Report error: {e}")
         return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0, 'mental_minutes': 0,
-                        'training_count': 0, 'training_avg': 0})
+                        'training_count': 0, 'training_avg': 0, 'behavior': 0})
 
 
-@app.route('/api/send_report')
+@app.route('/api/report/day')
+def api_report_day():
+    """Звіт за конкретний день"""
+    try:
+        date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        start_ts = int(datetime.strptime(date, '%Y-%m-%d').timestamp())
+        end_ts = start_ts + 86400
+
+        events = db.get_events_by_date_range(date, date)
+
+        feed = len([e for e in events if e['type'] == 'feed'])
+        walk = sum([e['value'] for e in events if e['type'] == 'walk']) // 60
+        toilet = len([e for e in events if e['type'] == 'toilet'])
+        sleep = sum([e['value'] for e in events if e['type'] == 'sleep']) // 3600
+        behavior = len([e for e in events if e['type'] == 'behavior'])
+        mental = len([e for e in events if e['type'] == 'mental'])
+
+        return jsonify({
+            'date': date,
+            'feed': feed,
+            'walk_minutes': walk,
+            'toilet': toilet,
+            'sleep_hours': sleep,
+            'behavior': behavior,
+            'mental': mental,
+            'events': events
+        })
+    except Exception as e:
+        logger.error(f"Report day error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/send_report', methods=['GET', 'POST'])
 def api_send_report():
     try:
         report = db.get_full_report(7)
-        msg = f"🐾 <b>Звіт Айли за тиждень</b>\n\n📊 Статистика:\n🍖 Годувань: {report['feed']}\n🚶 Прогулянок: {report['walk_minutes']} хв\n😴 Сну: {report['sleep_hours']} год\n🚽 Туалет: {report['toilet']}\n🧠 Ментальне: {report['mental_minutes']} хв\n🏋️ Тренувань: {report['training_count']} (усп. {report['training_avg']}/5)"
-        if send_telegram(msg):
-            return jsonify({'message': '✅ Звіт надіслано!'})
-        return jsonify({'message': '❌ Помилка Telegram'})
+        msg = f"🐾 <b>Звіт Айли за тиждень</b>\n\n📊 Статистика:\n🍖 Годувань: {report['feed']}\n🚶 Прогулянок: {report['walk_minutes']} хв\n😴 Сну: {report['sleep_hours']} год\n🚽 Туалет: {report['toilet']}\n⚠️ Поведінка: {report['behavior']}\n🧠 Ментальне: {report['mental_minutes']} хв\n🏋️ Тренувань: {report['training_count']} (усп. {report['training_avg']}/5)"
+
+        # Надіслати в особисті повідомлення
+        send_telegram(msg)
+
+        # Надіслати в групові чати
+        for group in db.get_group_chats():
+            send_telegram(msg, group['chat_id'])
+
+        return jsonify({'message': '✅ Звіт надіслано!'})
     except Exception as e:
         logger.error(f"Send report error: {e}")
         return jsonify({'message': '❌ Помилка'})
 
+
+@app.route('/api/send_daily_report', methods=['POST'])
+def api_send_daily_report():
+    """Відправка денного звіту в Telegram"""
+    try:
+        data = request.get_json()
+        date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+
+        start_ts = int(datetime.strptime(date, '%Y-%m-%d').timestamp())
+        end_ts = start_ts + 86400
+        events = db.get_events_by_date_range(date, date)
+
+        feed = len([e for e in events if e['type'] == 'feed'])
+        walk = sum([e['value'] for e in events if e['type'] == 'walk']) // 60
+        toilet = len([e for e in events if e['type'] == 'toilet'])
+        sleep = sum([e['value'] for e in events if e['type'] == 'sleep']) // 3600
+        behavior = len([e for e in events if e['type'] == 'behavior'])
+
+        msg = f"📅 <b>Звіт за {date}</b>\n\n"
+        msg += f"🍖 Годувань: {feed}\n"
+        msg += f"🚶 Прогулянок: {walk} хв\n"
+        msg += f"😴 Сну: {sleep} год\n"
+        msg += f"🚽 Туалет: {toilet}\n"
+        msg += f"⚠️ Поведінка: {behavior}\n"
+
+        if events:
+            msg += f"\n📋 Події дня:\n"
+            for e in events[:10]:
+                msg += f"• {datetime.fromtimestamp(e['timestamp']).strftime('%H:%M')} - {e['type']}\n"
+
+        send_telegram(msg, data.get('chat_id'))
+        return jsonify({'message': '✅ Звіт надіслано!'})
+    except Exception as e:
+        logger.error(f"Send daily report error: {e}")
+        return jsonify({'message': '❌ Помилка'})
+
+
+# ========== ІНШІ API ==========
 
 @app.route('/api/insight')
 def api_insight():
@@ -589,13 +837,10 @@ def api_test_telegram():
         return jsonify({'message': f'❌ Помилка: {str(e)}'})
 
 
-# ========== НОВІ API МАРШРУТИ ==========
-
-# ----- Прогнози та тренди -----
+# ========== НОВІ API (ПРОГНОЗИ, ВЕТПАСПОРТ, СІМ'Я) ==========
 
 @app.route('/api/weight_trend')
 def api_weight_trend():
-    """Отримати тренд ваги та прогноз"""
     try:
         trend = db.get_weight_trend(30)
         return jsonify(trend if trend else {'message': 'Недостатньо даних для прогнозу'})
@@ -606,7 +851,6 @@ def api_weight_trend():
 
 @app.route('/api/activity_trend')
 def api_activity_trend():
-    """Отримати тренд активності"""
     try:
         trend = db.get_activity_trend(30)
         return jsonify(trend if trend else {'message': 'Недостатньо даних для аналізу'})
@@ -614,8 +858,6 @@ def api_activity_trend():
         logger.error(f"Activity trend error: {e}")
         return jsonify({'error': str(e)})
 
-
-# ----- Ветеринарний паспорт -----
 
 @app.route('/api/vaccinations', methods=['GET', 'POST'])
 def api_vaccinations():
@@ -632,8 +874,7 @@ def api_vaccinations():
                 data.get('notes')
             )
             return jsonify({'success': True})
-        else:
-            return jsonify(db.get_vaccinations())
+        return jsonify(db.get_vaccinations())
     except Exception as e:
         logger.error(f"Vaccinations error: {e}")
         return jsonify({'error': str(e)})
@@ -654,8 +895,7 @@ def api_parasite_treatments():
                 data.get('notes')
             )
             return jsonify({'success': True})
-        else:
-            return jsonify(db.get_parasite_treatments())
+        return jsonify(db.get_parasite_treatments())
     except Exception as e:
         logger.error(f"Parasite treatments error: {e}")
         return jsonify({'error': str(e)})
@@ -674,18 +914,14 @@ def api_dental_history():
                 data.get('next_due')
             )
             return jsonify({'success': True})
-        else:
-            return jsonify(db.get_dental_history())
+        return jsonify(db.get_dental_history())
     except Exception as e:
         logger.error(f"Dental history error: {e}")
         return jsonify({'error': str(e)})
 
 
-# ----- Розумні нагадування -----
-
 @app.route('/api/smart_reminders')
 def api_smart_reminders():
-    """Отримати список розумних нагадувань"""
     try:
         reminders = db.get_smart_reminders()
         triggered = db.check_smart_reminders()
@@ -697,7 +933,6 @@ def api_smart_reminders():
 
 @app.route('/api/check_smart_reminders', methods=['POST'])
 def api_check_smart_reminders():
-    """Перевірити розумні нагадування"""
     try:
         triggered = db.check_smart_reminders()
         for r in triggered:
@@ -708,8 +943,6 @@ def api_check_smart_reminders():
         logger.error(f"Check smart reminders error: {e}")
         return jsonify({'error': str(e)})
 
-
-# ----- Сімейний доступ -----
 
 @app.route('/api/family_members', methods=['GET', 'POST', 'DELETE'])
 def api_family_members():
@@ -727,8 +960,7 @@ def api_family_members():
             data = request.get_json()
             db.delete_family_member(data['id'])
             return jsonify({'success': True})
-        else:
-            return jsonify(db.get_family_members())
+        return jsonify(db.get_family_members())
     except Exception as e:
         logger.error(f"Family members error: {e}")
         return jsonify({'error': str(e)})
@@ -736,13 +968,48 @@ def api_family_members():
 
 @app.route('/api/notify_family', methods=['POST'])
 def api_notify_family():
-    """Надіслати сповіщення всій сім'ї"""
     try:
         data = request.get_json()
         notified = db.notify_family(data['message'])
         return jsonify({'notified': notified})
     except Exception as e:
         logger.error(f"Notify family error: {e}")
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/group_chats', methods=['GET', 'POST'])
+def api_group_chats():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_group_chat(data['chat_id'], data.get('title'))
+            return jsonify({'success': True})
+        return jsonify(db.get_group_chats())
+    except Exception as e:
+        logger.error(f"Group chats error: {e}")
+        return jsonify([])
+
+
+@app.route('/api/check_reminders', methods=['POST'])
+def api_check_reminders():
+    """Перевірка нагадувань і відправка в Telegram"""
+    try:
+        due_reminders = db.get_due_medical_reminders()
+        for r in due_reminders:
+            msg = f"💊 <b>{r['title']}</b>\n\n{r.get('description', '')}\n\n⏰ Час виконання: {r['reminder_time']}"
+
+            # Надіслати адміну
+            admin_chat = db.get_setting('telegram_chat_id')
+            if admin_chat:
+                send_telegram(msg, admin_chat)
+
+            # Надіслати в групи
+            for group in db.get_group_chats():
+                send_telegram(msg, group['chat_id'])
+
+        return jsonify({'checked': len(due_reminders)})
+    except Exception as e:
+        logger.error(f"Check reminders error: {e}")
         return jsonify({'error': str(e)})
 
 

@@ -44,7 +44,7 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 12px;
             margin-bottom: 20px;
         }
@@ -75,21 +75,25 @@
         }
 
         .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            display: flex;
             gap: 12px;
             margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .action-btn {
             background: white;
             border: none;
             border-radius: 20px;
-            padding: 16px 8px;
+            padding: 16px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            min-width: 80px;
+            flex-shrink: 0;
         }
 
         .action-btn:active {
@@ -106,6 +110,27 @@
             font-size: 12px;
             font-weight: 500;
             color: #555;
+        }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sub-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .sub-action-btn {
+            background: #f0f0f0;
+            border: none;
+            border-radius: 16px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
         }
 
         .timeline-section {
@@ -150,10 +175,6 @@
             font-weight: 500;
         }
 
-        .date-nav button:active {
-            background: #e0e0e0;
-        }
-
         .timeline-canvas {
             position: relative;
             height: 300px;
@@ -170,23 +191,13 @@
             border-top: 1px solid #eee;
         }
 
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-        }
-
         .legend-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
         }
-
-        .legend-dot-sleep { background: #9b59b6; }
-        .legend-dot-walk { background: #3498db; }
-        .legend-dot-feed { background: #f39c12; }
-        .legend-dot-toilet { background: #2ecc71; }
 
         .tabs {
             display: flex;
@@ -231,6 +242,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .btn {
@@ -246,20 +259,9 @@
             transition: opacity 0.2s;
         }
 
-        .btn:active {
-            opacity: 0.8;
-        }
-
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        .btn-small {
-            width: auto;
-            padding: 8px 16px;
-            font-size: 12px;
-        }
+        .btn:active { opacity: 0.8; }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-small { width: auto; padding: 8px 16px; font-size: 12px; }
 
         .events-feed {
             max-height: 500px;
@@ -275,10 +277,6 @@
             align-items: center;
             gap: 14px;
             transition: all 0.2s;
-        }
-
-        .event-card:active {
-            transform: scale(0.99);
         }
 
         .event-time-large {
@@ -324,34 +322,19 @@
             margin-top: 4px;
         }
 
-        .edit-event-btn {
+        .edit-event-btn, .delete-event-btn {
             background: none;
             border: none;
             font-size: 18px;
             cursor: pointer;
-            color: #3498db;
-            padding: 8px;
-            border-radius: 30px;
-            margin-right: 4px;
-        }
-
-        .edit-event-btn:active {
-            color: #2980b9;
-        }
-
-        .delete-event-btn {
-            background: none;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            color: #ccc;
             padding: 8px;
             border-radius: 30px;
         }
 
-        .delete-event-btn:active {
-            color: #f44336;
-        }
+        .edit-event-btn { color: #3498db; }
+        .delete-event-btn { color: #ccc; font-size: 20px; }
+        .edit-event-btn:active { color: #2980b9; }
+        .delete-event-btn:active { color: #f44336; }
 
         .modal {
             display: none;
@@ -372,7 +355,7 @@
             border-radius: 32px;
             padding: 24px;
             width: 100%;
-            max-width: 320px;
+            max-width: 360px;
             max-height: 90vh;
             overflow-y: auto;
         }
@@ -382,9 +365,7 @@
             margin-bottom: 16px;
         }
 
-        .modal-content input,
-        .modal-content select,
-        .modal-content textarea {
+        .modal-content input, .modal-content select, .modal-content textarea {
             width: 100%;
             padding: 12px;
             margin: 8px 0;
@@ -420,10 +401,6 @@
             margin-top: 10px;
         }
 
-        .settings-label:first-of-type {
-            margin-top: 0;
-        }
-
         .toast {
             position: fixed;
             bottom: 20px;
@@ -439,27 +416,16 @@
             white-space: nowrap;
         }
 
-        .tab-content {
-            display: none;
-        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        .tab-content.active {
-            display: block;
-        }
-
-        canvas {
-            max-height: 250px;
-            width: 100%;
-        }
+        canvas { max-height: 250px; width: 100%; }
 
         .insight-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-
-        .insight-card .card-title {
-            color: white;
-        }
+        .insight-card .card-title { color: white; }
 
         .empty-state {
             text-align: center;
@@ -470,30 +436,36 @@
         .trend-up { color: #e74c3c; }
         .trend-down { color: #2ecc71; }
         .trend-stable { color: #3498db; }
+        .reminder-triggered { background: #fff3cd; border-left: 4px solid #ffc107; }
 
-        .reminder-triggered {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
+        .measurement-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .measurement-input {
+            flex: 1;
+            text-align: center;
+        }
+        .measurement-input label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .measurement-input input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            text-align: center;
         }
 
         @media (min-width: 768px) {
-            body {
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-            }
-
-            .stats-grid {
-                gap: 16px;
-            }
-
-            .stat-value {
-                font-size: 24px;
-            }
-
-            .quick-actions {
-                grid-template-columns: repeat(6, 1fr);
-            }
+            body { max-width: 900px; margin: 0 auto; padding: 20px; }
+            .stats-grid { gap: 16px; }
+            .stat-value { font-size: 24px; }
         }
     </style>
 </head>
@@ -504,61 +476,38 @@
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">🍖</div>
-            <div class="stat-value" id="statFeed">0</div>
-            <div class="stat-label">годувань</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🚶</div>
-            <div class="stat-value" id="statWalk">0</div>
-            <div class="stat-label">прогулянка</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">😴</div>
-            <div class="stat-value" id="statSleep">0</div>
-            <div class="stat-label">сон</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🚽</div>
-            <div class="stat-value" id="statToilet">0</div>
-            <div class="stat-label">туалет</div>
-        </div>
+        <div class="stat-card"><div class="stat-icon">🍖</div><div class="stat-value" id="statFeed">0</div><div class="stat-label">годів</div></div>
+        <div class="stat-card"><div class="stat-icon">🚶</div><div class="stat-value" id="statWalk">0</div><div class="stat-label">прогулянка</div></div>
+        <div class="stat-card"><div class="stat-icon">😴</div><div class="stat-value" id="statSleep">0</div><div class="stat-label">сон</div></div>
+        <div class="stat-card"><div class="stat-icon">🚽</div><div class="stat-value" id="statToilet">0</div><div class="stat-label">туалет</div></div>
+        <div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-value" id="statBehavior">0</div><div class="stat-label">поведінка</div></div>
     </div>
 
+    <!-- Швидкі дії -->
     <div class="quick-actions">
-        <button class="action-btn" onclick="quickAdd('feed')">
-            <div class="action-icon">🍖</div>
-            <div class="action-text">Їжа</div>
-        </button>
-        <button class="action-btn" onclick="quickAdd('toilet_pee')">
-            <div class="action-icon">💧</div>
-            <div class="action-text">Піся</div>
-        </button>
-        <button class="action-btn" onclick="quickAdd('toilet_poop')">
-            <div class="action-icon">💩</div>
-            <div class="action-text">Кака</div>
-        </button>
-        <button class="action-btn" id="walkBtn" onclick="toggleWalk()">
-            <div class="action-icon" id="walkIcon">🚶</div>
-            <div class="action-text" id="walkText">Прогулянка</div>
-        </button>
-        <button class="action-btn" id="sleepBtn" onclick="toggleSleep()">
-            <div class="action-icon" id="sleepIcon">😴</div>
-            <div class="action-text" id="sleepText">Сон</div>
-        </button>
-        <button class="action-btn" onclick="showWeightModal()">
-            <div class="action-icon">⚖️</div>
-            <div class="action-text">Вага</div>
-        </button>
+        <div class="action-group">
+            <button class="action-btn" onclick="quickAdd('feed')"><div class="action-icon">🍖</div><div class="action-text">Їжа</div></button>
+        </div>
+        <div class="action-group">
+            <button class="action-btn" onclick="showToiletMenu(this)"><div class="action-icon">🚽</div><div class="action-text">Туалет</div></button>
+            <div class="sub-actions" id="toiletSubmenu" style="display:none">
+                <button class="sub-action-btn" onclick="quickAdd('toilet_pee')">💧 Піся</button>
+                <button class="sub-action-btn" onclick="quickAdd('toilet_poop')">💩 Кака</button>
+            </div>
+        </div>
+        <div class="action-group">
+            <button class="action-btn" onclick="showBehaviorMenu(this)"><div class="action-icon">⚠️</div><div class="action-text">Поведінка</div></button>
+            <div class="sub-actions" id="behaviorSubmenu" style="display:none"></div>
+        </div>
+        <button class="action-btn" id="walkBtn" onclick="toggleWalk()"><div class="action-icon" id="walkIcon">🚶</div><div class="action-text" id="walkText">Прогулянка</div></button>
+        <button class="action-btn" id="sleepBtn" onclick="toggleSleep()"><div class="action-icon" id="sleepIcon">😴</div><div class="action-text" id="sleepText">Сон</div></button>
+        <button class="action-btn" onclick="showWeightModal()"><div class="action-icon">⚖️</div><div class="action-text">Вага</div></button>
     </div>
 
     <!-- Розклад дня -->
     <div class="timeline-section">
         <div class="section-header">
-            <div class="section-title">
-                <span>📅</span> Розклад дня
-            </div>
+            <div class="section-title"><span>📅</span> Розклад дня</div>
             <div class="date-nav">
                 <button onclick="changeDay(-1)">◀ Вчора</button>
                 <button onclick="changeDay(0)" id="todayBtn">Сьогодні</button>
@@ -569,10 +518,11 @@
             <canvas id="timelineChart"></canvas>
         </div>
         <div class="timeline-legend">
-            <div class="legend-item"><div class="legend-dot legend-dot-sleep"></div><span>Сон</span></div>
-            <div class="legend-item"><div class="legend-dot legend-dot-walk"></div><span>Прогулянка</span></div>
-            <div class="legend-item"><div class="legend-dot legend-dot-feed"></div><span>Годування</span></div>
-            <div class="legend-item"><div class="legend-dot legend-dot-toilet"></div><span>Туалет</span></div>
+            <div><span class="legend-dot" style="background:#9b59b6"></span>Сон</div>
+            <div><span class="legend-dot" style="background:#3498db"></span>Прогулянка</div>
+            <div><span class="legend-dot" style="background:#f39c12"></span>Годування</div>
+            <div><span class="legend-dot" style="background:#2ecc71"></span>Туалет</div>
+            <div><span class="legend-dot" style="background:#e74c3c"></span>Поведінка</div>
         </div>
     </div>
 
@@ -580,6 +530,7 @@
         <button class="tab active" data-tab="activity">📊 Активність</button>
         <button class="tab" data-tab="feed">📋 Стрічка</button>
         <button class="tab" data-tab="weight">⚖️ Вага</button>
+        <button class="tab" data-tab="measurements">📏 Пропорції</button>
         <button class="tab" data-tab="training">🏋️ Тренування</button>
         <button class="tab" data-tab="mental">🧠 Розвиток</button>
         <button class="tab" data-tab="health">💊 Здоров'я</button>
@@ -590,317 +541,151 @@
         <button class="tab" data-tab="settings">⚙️ Налаштування</button>
     </div>
 
+    <!-- Вкладка Активність -->
     <div id="tab-activity" class="tab-content active">
-        <div class="card">
-            <div class="card-title">📊 Тижнева статистика</div>
-            <canvas id="weeklyChart"></canvas>
-        </div>
+        <div class="card"><div class="card-title">📊 Тижнева статистика</div><canvas id="weeklyChart"></canvas></div>
     </div>
 
+    <!-- Вкладка Стрічка -->
     <div id="tab-feed" class="tab-content">
-        <div class="card">
-            <div class="card-title">📋 Стрічка подій</div>
-            <div class="events-feed" id="eventsFeed"></div>
-        </div>
+        <div class="card"><div class="card-title">📋 Стрічка подій</div><div class="events-feed" id="eventsFeed"></div></div>
     </div>
 
+    <!-- Вкладка Вага -->
     <div id="tab-weight" class="tab-content">
-        <div class="card">
-            <div class="card-title">⚖️ Динаміка ваги</div>
-            <canvas id="weightChart"></canvas>
-            <div id="foodInfo" style="margin-top: 16px; padding: 12px; background: #f5f5f7; border-radius: 16px; text-align: center;"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">📋 Історія ваги</div>
-            <div class="events-feed" id="weightList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showWeightModal()">➕ Додати вагу</button>
-        </div>
+        <div class="card"><div class="card-title">⚖️ Динаміка ваги</div><canvas id="weightChart"></canvas><div id="foodInfo" style="margin-top:16px; padding:12px; background:#f5f5f7; border-radius:16px; text-align:center;"></div></div>
+        <div class="card"><div class="card-title">📋 Історія ваги <button class="btn-small" onclick="showWeightModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="weightList"></div></div>
     </div>
 
+    <!-- Вкладка Пропорції -->
+    <div id="tab-measurements" class="tab-content">
+        <div class="card"><div class="card-title">📏 Динаміка пропорцій</div><canvas id="measurementsChart"></canvas></div>
+        <div class="card"><div class="card-title">📋 Історія замірів <button class="btn-small" onclick="showMeasurementModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="measurementsList"></div></div>
+    </div>
+
+    <!-- Вкладка Тренування -->
     <div id="tab-training" class="tab-content">
-        <div class="card">
-            <div class="card-title">🏋️ Успішність команд</div>
-            <canvas id="trainingChart"></canvas>
-        </div>
-        <div class="card">
-            <div class="card-title">📋 Історія тренувань</div>
-            <div class="events-feed" id="trainingList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showTrainingModal()">➕ Додати тренування</button>
-        </div>
+        <div class="card"><div class="card-title">🏋️ Успішність команд <button class="btn-small" onclick="showAddTrainingTypeModal()" style="width:auto">➕ Нова команда</button></div><canvas id="trainingChart"></canvas></div>
+        <div class="card"><div class="card-title">📋 Історія тренувань <button class="btn-small" onclick="showTrainingModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="trainingList"></div></div>
     </div>
 
+    <!-- Вкладка Ментальна активність -->
     <div id="tab-mental" class="tab-content">
-        <div class="card">
-            <div class="card-title">🧠 Ментальна активність</div>
-            <canvas id="mentalChart"></canvas>
-            <div id="mentalAdvice" style="margin-top: 12px; padding: 12px; background: #f5f5f7; border-radius: 16px;"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">🔍 Маркери туалету</div>
-            <canvas id="pottyChart"></canvas>
-        </div>
-        <button class="btn" onclick="showMentalModal()">➕ Додати ментальну активність</button>
+        <div class="card"><div class="card-title">🧠 Ментальна активність <button class="btn-small" onclick="showAddMentalTypeModal()" style="width:auto">➕ Новий тип</button></div><canvas id="mentalChart"></canvas><div id="mentalAdvice" style="margin-top:12px; padding:12px; background:#f5f5f7; border-radius:16px;"></div></div>
+        <div class="card"><div class="card-title">📋 Історія активностей <button class="btn-small" onclick="showMentalModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="mentalActivitiesList"></div></div>
+        <div class="card"><div class="card-title">🔍 Маркери туалету</div><canvas id="pottyChart"></canvas></div>
     </div>
 
+    <!-- Вкладка Здоров'я -->
     <div id="tab-health" class="tab-content">
-        <div class="card">
-            <div class="card-title">💊 Нагадування</div>
-            <div class="events-feed" id="remindersList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showReminderModal()">➕ Додати нагадування</button>
-        </div>
-        <div class="card">
-            <div class="card-title">🌡️ Симптоми</div>
-            <div class="events-feed" id="symptomsList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showSymptomModal()">➕ Додати симптоми</button>
-        </div>
-        <div class="card">
-            <div class="card-title">⚠️ Алергії</div>
-            <div class="events-feed" id="allergiesList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showAllergyModal()">➕ Додати алергію</button>
-        </div>
+        <div class="card"><div class="card-title">💊 Нагадування <button class="btn-small" onclick="showReminderModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="remindersList"></div></div>
+        <div class="card"><div class="card-title">🌡️ Симптоми <button class="btn-small" onclick="showSymptomModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="symptomsList"></div></div>
+        <div class="card"><div class="card-title">⚠️ Алергії <button class="btn-small" onclick="showAllergyModal()" style="width:auto">➕ Додати</button></div><div class="events-feed" id="allergiesList"></div></div>
     </div>
 
-    <!-- Нова вкладка: Ветеринарний паспорт -->
+    <!-- Вкладка Ветпаспорт -->
     <div id="tab-vet" class="tab-content">
-        <div class="card">
-            <div class="card-title">💉 Щеплення</div>
-            <div id="vaccinationsList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showVaccinationModal()">➕ Додати щеплення</button>
-        </div>
-        <div class="card">
-            <div class="card-title">🪱 Обробка від паразитів</div>
-            <div id="parasiteList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showParasiteModal()">➕ Додати обробку</button>
-        </div>
-        <div class="card">
-            <div class="card-title">🦷 Стоматологія</div>
-            <div id="dentalList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showDentalModal()">➕ Додати процедуру</button>
-        </div>
+        <div class="card"><div class="card-title">💉 Щеплення <button class="btn-small" onclick="showVaccinationModal()" style="width:auto">➕ Додати</button></div><div id="vaccinationsList"></div></div>
+        <div class="card"><div class="card-title">🪱 Обробка від паразитів <button class="btn-small" onclick="showParasiteModal()" style="width:auto">➕ Додати</button></div><div id="parasiteList"></div></div>
+        <div class="card"><div class="card-title">🦷 Стоматологія <button class="btn-small" onclick="showDentalModal()" style="width:auto">➕ Додати</button></div><div id="dentalList"></div></div>
     </div>
 
-    <!-- Нова вкладка: Тренди та прогнози -->
+    <!-- Вкладка Тренди -->
     <div id="tab-trends" class="tab-content">
-        <div class="card">
-            <div class="card-title">📈 Прогноз ваги</div>
-            <div id="weightTrendInfo"></div>
-            <canvas id="weightTrendChart" style="max-height: 200px;"></canvas>
-        </div>
-        <div class="card">
-            <div class="card-title">📊 Аналіз активності</div>
-            <div id="activityTrendInfo"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">🔔 Розумні нагадування</div>
-            <div id="smartRemindersList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="checkSmartReminders()">🔍 Перевірити нагадування</button>
-        </div>
+        <div class="card"><div class="card-title">📈 Прогноз ваги</div><div id="weightTrendInfo"></div></div>
+        <div class="card"><div class="card-title">📊 Аналіз активності</div><div id="activityTrendInfo"></div></div>
+        <div class="card"><div class="card-title">🔔 Розумні нагадування</div><div id="smartRemindersList"></div><button class="btn" style="margin-top:16px" onclick="checkSmartReminders()">🔍 Перевірити нагадування</button></div>
     </div>
 
-    <!-- Нова вкладка: Сімейний доступ -->
+    <!-- Вкладка Сім'я -->
     <div id="tab-family" class="tab-content">
-        <div class="card">
-            <div class="card-title">👨‍👩‍👧‍👦 Члени сім'ї</div>
-            <div id="familyMembersList"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="showFamilyModal()">➕ Додати члена сім'ї</button>
-        </div>
-        <div class="card">
-            <div class="card-title">📢 Сповіщення</div>
-            <textarea id="notificationMessage" rows="3" placeholder="Введіть повідомлення для сім'ї..." style="width:100%; padding:12px; border-radius:16px; border:1px solid #ddd; margin-bottom:12px;"></textarea>
-            <button class="btn" onclick="sendFamilyNotification()">📨 Надіслати всім</button>
-        </div>
+        <div class="card"><div class="card-title">👨‍👩‍👧‍👦 Члени сім'ї <button class="btn-small" onclick="showFamilyModal()" style="width:auto">➕ Додати</button></div><div id="familyMembersList"></div></div>
+        <div class="card"><div class="card-title">📢 Сповіщення</div><textarea id="notificationMessage" rows="3" placeholder="Введіть повідомлення для сім'ї..." style="width:100%; padding:12px; border-radius:16px; border:1px solid #ddd; margin-bottom:12px;"></textarea><button class="btn" onclick="sendFamilyNotification()">📨 Надіслати всім</button></div>
     </div>
 
+    <!-- Вкладка Звіт -->
     <div id="tab-report" class="tab-content">
-        <div class="card">
-            <div class="card-title">📊 Повний звіт</div>
-            <div id="reportContent"></div>
-            <button class="btn" style="margin-top: 16px;" onclick="sendReport()">📱 Надіслати в Telegram</button>
-        </div>
+        <div class="card"><div class="card-title">📊 Звіт за день</div><input type="date" id="reportDate" value=""><button class="btn" style="margin-top:12px" onclick="loadDayReport()">📅 Показати звіт</button><div id="dayReportContent"></div><button class="btn" style="margin-top:12px" onclick="sendDayReport()">📱 Надіслати в Telegram</button></div>
+        <div class="card"><div class="card-title">📊 Тижневий звіт</div><div id="reportContent"></div><button class="btn" style="margin-top:16px" onclick="sendReport()">📱 Надіслати в Telegram</button></div>
     </div>
 
+    <!-- Вкладка Налаштування -->
     <div id="tab-settings" class="tab-content">
-        <div class="card">
-            <div class="card-title">🐾 Основні налаштування</div>
-
-            <label class="settings-label">📝 Ім'я улюбленця</label>
-            <input type="text" id="settingPetName" class="settings-input" placeholder="Айла">
-
-            <label class="settings-label">🎂 Дата народження</label>
-            <input type="date" id="settingBirthDate" class="settings-input">
-
-            <label class="settings-label">🍖 Калорійність корму (ккал/кг)</label>
-            <input type="number" id="settingFoodDensity" class="settings-input" step="100" placeholder="3800">
-
-            <label class="settings-label">🎯 Цільова вага (кг)</label>
-            <input type="number" id="settingTargetWeight" class="settings-input" step="0.5" placeholder="8.0">
+        <div class="card"><div class="card-title">🐾 Основні налаштування</div>
+            <label class="settings-label">📝 Ім'я улюбленця</label><input type="text" id="settingPetName" class="settings-input" placeholder="Айла">
+            <label class="settings-label">🎂 Дата народження</label><input type="date" id="settingBirthDate" class="settings-input">
+            <label class="settings-label">🍖 Калорійність корму (ккал/кг)</label><input type="number" id="settingFoodDensity" class="settings-input" step="100" placeholder="3800">
+            <label class="settings-label">🎯 Цільова вага (кг)</label><input type="number" id="settingTargetWeight" class="settings-input" step="0.5" placeholder="8.0">
         </div>
-
-        <div class="card">
-            <div class="card-title">📊 Плани на день</div>
-
-            <label class="settings-label">🍖 Кількість годувань на день</label>
-            <input type="number" id="settingPlannedMeals" class="settings-input" step="1" placeholder="4">
-            <small style="font-size: 11px; color: #888; display: block; margin-top: -5px;">Скільки разів на день має їсти Айла</small>
-
-            <label class="settings-label">😴 Скільки має спати (годин на день)</label>
-            <input type="number" id="settingPlannedSleep" class="settings-input" step="0.5" placeholder="14">
-            <small style="font-size: 11px; color: #888; display: block; margin-top: -5px;">Рекомендовано для цуценят: 14-16 годин</small>
-
-            <label class="settings-label">⏰ Нагадування про туалет (хв після їжі)</label>
-            <input type="number" id="settingPottyReminder" class="settings-input" step="5" placeholder="25">
+        <div class="card"><div class="card-title">📊 Плани на день</div>
+            <label class="settings-label">🍖 Кількість годувань на день</label><input type="number" id="settingPlannedMeals" class="settings-input" step="1" placeholder="4">
+            <label class="settings-label">😴 Скільки має спати (годин на день)</label><input type="number" id="settingPlannedSleep" class="settings-input" step="0.5" placeholder="14">
+            <label class="settings-label">⏰ Нагадування про туалет (хв після їжі)</label><input type="number" id="settingPottyReminder" class="settings-input" step="5" placeholder="25">
         </div>
-
-        <div class="card">
-            <div class="card-title">📱 Telegram</div>
-
-            <label class="settings-label">🤖 Bot Token</label>
-            <input type="text" id="settingTelegramToken" class="settings-input" placeholder="Вставте токен бота">
-
-            <label class="settings-label">🆔 Chat ID</label>
-            <input type="text" id="settingTelegramChatId" class="settings-input" placeholder="Вставте Chat ID">
-
-            <button class="btn" style="margin-bottom: 12px;" onclick="testTelegram()">📱 Тестувати Telegram</button>
+        <div class="card"><div class="card-title">📱 Telegram</div>
+            <label class="settings-label">🤖 Bot Token</label><input type="text" id="settingTelegramToken" class="settings-input" placeholder="Вставте токен бота">
+            <label class="settings-label">🆔 Chat ID</label><input type="text" id="settingTelegramChatId" class="settings-input" placeholder="Вставте Chat ID">
+            <label class="settings-label">📢 Груповий чат ID</label><input type="text" id="settingGroupChatId" class="settings-input" placeholder="ID групи">
+            <button class="btn" style="margin-bottom:12px" onclick="testTelegram()">📱 Тестувати Telegram</button>
             <button class="btn btn-secondary" onclick="saveAllSettings()">💾 Зберегти всі налаштування</button>
         </div>
     </div>
 
-    <div class="card insight-card">
-        <div class="card-title">🧠 Порада дня</div>
-        <div id="insightText"></div>
-    </div>
-
+    <div class="card insight-card"><div class="card-title">🧠 Порада дня</div><div id="insightText"></div></div>
     <div id="toast" class="toast">✅ Готово!</div>
 
-    <!-- Модальне вікно редагування події -->
-    <div id="editEventModal" class="modal">
-        <div class="modal-content">
-            <h3 id="editModalTitle">✏️ Редагувати подію</h3>
-            <input type="hidden" id="editEventId">
-            <input type="hidden" id="editEventType">
-            <label style="font-size:13px; color:#666;">📅 Дата та час</label>
-            <input type="datetime-local" id="editEventDatetime" class="datetime-input">
-            <div id="editEventExtraFields"></div>
-            <textarea id="editEventNote" rows="2" placeholder="Нотатки"></textarea>
-            <button class="btn" onclick="saveEditedEvent()">💾 Зберегти зміни</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('editEventModal')">Скасувати</button>
-        </div>
-    </div>
+    <!-- Модальні вікна -->
+    <div id="editEventModal" class="modal"><div class="modal-content"><h3 id="editModalTitle">✏️ Редагувати подію</h3><input type="hidden" id="editEventId"><input type="hidden" id="editEventType"><label>📅 Дата та час</label><input type="datetime-local" id="editEventDatetime" class="datetime-input"><div id="editEventExtraFields"></div><textarea id="editEventNote" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveEditedEvent()">💾 Зберегти зміни</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('editEventModal')">Скасувати</button></div></div>
 
-    <!-- Існуючі модальні вікна -->
-    <div id="weightModal" class="modal">
-        <div class="modal-content">
-            <h3>⚖️ Додати вагу</h3>
-            <input type="number" id="weightInput" step="0.1" placeholder="Вага в кг">
-            <button class="btn" onclick="saveWeight()">💾 Зберегти</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('weightModal')">Скасувати</button>
-        </div>
-    </div>
+    <div id="weightModal" class="modal"><div class="modal-content"><h3>⚖️ Додати вагу</h3><input type="number" id="weightInput" step="0.1" placeholder="Вага в кг"><button class="btn" onclick="saveWeight()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('weightModal')">Скасувати</button></div></div>
 
-    <div id="trainingModal" class="modal">
-        <div class="modal-content">
-            <h3>🏋️ Тренування</h3>
-            <select id="commandInput">
-                <option>Сидіти</option><option>Лежати</option><option>До мене</option><option>Поруч</option><option>Дай лапу</option>
-            </select>
-            <input type="number" id="durationInput" placeholder="Тривалість (хв)" value="10">
-            <select id="successInput">
-                <option value="5">✅ Відмінно (5)</option>
-                <option value="3">👍 Задовільно (3)</option>
-                <option value="1">❌ Не вдалося (1)</option>
-            </select>
-            <button class="btn" onclick="saveTraining()">💾 Зберегти</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('trainingModal')">Скасувати</button>
-        </div>
-    </div>
+    <div id="editWeightModal" class="modal"><div class="modal-content"><h3>✏️ Редагувати вагу</h3><input type="hidden" id="editWeightId"><input type="number" id="editWeightValue" step="0.1" placeholder="Вага в кг"><label>📅 Дата</label><input type="datetime-local" id="editWeightDatetime" class="datetime-input"><button class="btn" onclick="saveEditedWeight()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('editWeightModal')">Скасувати</button></div></div>
 
-    <div id="mentalModal" class="modal">
-        <div class="modal-content">
-            <h3>🧠 Ментальна активність</h3>
-            <select id="mentalTypeInput">
-                <option value="puzzle">🧩 Головоломка</option>
-                <option value="scent">🔍 Пошук ласощів</option>
-                <option value="shaping">🎓 Вивчення трюків</option>
-                <option value="sniffing">👃 Нюхальний килимок</option>
-            </select>
-            <input type="number" id="mentalDurationInput" placeholder="Тривалість (хв)" value="15">
-            <button class="btn" onclick="saveMental()">💾 Зберегти</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('mentalModal')">Скасувати</button>
-        </div>
-    </div>
+    <div id="measurementModal" class="modal"><div class="modal-content"><h3>📏 Додати заміри</h3><div class="measurement-row"><div class="measurement-input"><label>Шия (см)</label><input type="number" id="neckCm" step="0.1" placeholder="см"></div><div class="measurement-input"><label>Груди (см)</label><input type="number" id="chestCm" step="0.1" placeholder="см"></div></div><div class="measurement-row"><div class="measurement-input"><label>Талія (см)</label><input type="number" id="waistCm" step="0.1" placeholder="см"></div><div class="measurement-input"><label>Довжина (см)</label><input type="number" id="lengthCm" step="0.1" placeholder="см"></div></div><div class="measurement-row"><div class="measurement-input"><label>Висота (см)</label><input type="number" id="heightCm" step="0.1" placeholder="см"></div></div><textarea id="measurementNote" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveMeasurement()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('measurementModal')">Скасувати</button></div></div>
 
-    <div id="symptomModal" class="modal">
-        <div class="modal-content">
-            <h3>🌡️ Симптоми</h3>
-            <input type="number" id="tempInput" step="0.1" placeholder="Температура">
-            <select id="appetiteInput">
-                <option value="5">🍖 Відмінний</option>
-                <option value="3">😐 Задовільний</option>
-                <option value="1">😖 Поганий</option>
-            </select>
-            <select id="moodInput">
-                <option>грайлива</option><option>спокійна</option><option>пригнічена</option>
-            </select>
-            <textarea id="symptomNote" rows="2" placeholder="Опис"></textarea>
-            <button class="btn" onclick="saveSymptom()">💾 Зберегти</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('symptomModal')">Скасувати</button>
-        </div>
-    </div>
+    <div id="trainingModal" class="modal"><div class="modal-content"><h3>🏋️ Тренування</h3><select id="commandInput"></select><input type="number" id="durationInput" placeholder="Тривалість (хв)" value="10"><select id="successInput"><option value="5">✅ Відмінно (5)</option><option value="3">👍 Задовільно (3)</option><option value="1">❌ Не вдалося (1)</option></select><button class="btn" onclick="saveTraining()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('trainingModal')">Скасувати</button></div></div>
 
-    <div id="allergyModal" class="modal">
-        <div class="modal-content">
-            <h3>⚠️ Алергія</h3>
-            <input type="text" id="allergyProduct" placeholder="Продукт">
-            <input type="text" id="allergyReaction" placeholder="Реакція">
-            <select id="allergySeverity">
-                <option value="5">🔴 Дуже сильна</option>
-                <option value="3">🟡 Середня</option>
-                <option value="1">🟢 Слабка</option>
-            </select>
-            <button class="btn" onclick="saveAllergy()">💾 Зберегти</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('allergyModal')">Скасувати</button>
-        </div>
-    </div>
+    <div id="addTrainingTypeModal" class="modal"><div class="modal-content"><h3>➕ Нова команда</h3><input type="text" id="newTrainingType" placeholder="Назва команди"><input type="text" id="newTrainingIcon" placeholder="Іконка (emoji)" value="🏋️"><button class="btn" onclick="saveTrainingType()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('addTrainingTypeModal')">Скасувати</button></div></div>
 
-    <div id="reminderModal" class="modal">
-        <div class="modal-content">
-            <h3>💊 Нагадування</h3>
-            <input type="text" id="reminderTitle" placeholder="Назва">
-            <input type="number" id="reminderInterval" placeholder="Інтервал (днів)">
-            <textarea id="reminderDesc" rows="2" placeholder="Опис"></textarea>
-            <button class="btn" onclick="saveReminder()">💾 Зберегти</button>
-            <button class="btn btn-secondary" style="margin-top: 8px;" onclick="closeModal('reminderModal')">Скасувати</button>
-        </div>
-    </div>
+    <div id="mentalModal" class="modal"><div class="modal-content"><h3>🧠 Ментальна активність</h3><select id="mentalTypeInput"></select><input type="number" id="mentalDurationInput" placeholder="Тривалість (хв)" value="15"><button class="btn" onclick="saveMental()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('mentalModal')">Скасувати</button></div></div>
+
+    <div id="addMentalTypeModal" class="modal"><div class="modal-content"><h3>➕ Нова активність</h3><input type="text" id="newMentalType" placeholder="Назва активності"><input type="text" id="newMentalIcon" placeholder="Іконка (emoji)" value="🧠"><button class="btn" onclick="saveMentalType()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('addMentalTypeModal')">Скасувати</button></div></div>
+
+    <div id="symptomModal" class="modal"><div class="modal-content"><h3>🌡️ Симптоми</h3><input type="number" id="tempInput" step="0.1" placeholder="Температура"><select id="appetiteInput"><option value="5">🍖 Відмінний</option><option value="3">😐 Задовільний</option><option value="1">😖 Поганий</option></select><select id="moodInput"><option>грайлива</option><option>спокійна</option><option>пригнічена</option></select><textarea id="symptomNote" rows="2" placeholder="Опис"></textarea><button class="btn" onclick="saveSymptom()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('symptomModal')">Скасувати</button></div></div>
+
+    <div id="allergyModal" class="modal"><div class="modal-content"><h3>⚠️ Алергія</h3><input type="text" id="allergyProduct" placeholder="Продукт"><input type="text" id="allergyReaction" placeholder="Реакція"><select id="allergySeverity"><option value="5">🔴 Дуже сильна</option><option value="3">🟡 Середня</option><option value="1">🟢 Слабка</option></select><button class="btn" onclick="saveAllergy()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('allergyModal')">Скасувати</button></div></div>
+
+    <div id="reminderModal" class="modal"><div class="modal-content"><h3>💊 Нагадування</h3><input type="text" id="reminderTitle" placeholder="Назва"><textarea id="reminderDesc" rows="2" placeholder="Опис"></textarea><input type="number" id="reminderInterval" placeholder="Інтервал (днів)"><input type="time" id="reminderTime" value="09:00"><button class="btn" onclick="saveReminder()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('reminderModal')">Скасувати</button></div></div>
+
+    <div id="vetModal" class="modal"><div class="modal-content"><h3>💉 Додати щеплення</h3><input type="text" id="vaccineName" placeholder="Назва щеплення"><input type="date" id="vaccineDate"><input type="date" id="vaccineNextDue" placeholder="Наступне"><input type="text" id="vaccineSeries" placeholder="Серія"><input type="text" id="vetName" placeholder="Лікар"><input type="text" id="clinicName" placeholder="Клініка"><textarea id="vaccineNotes" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveVaccination()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('vetModal')">Скасувати</button></div></div>
+
+    <div id="parasiteModal" class="modal"><div class="modal-content"><h3>🪱 Додати обробку</h3><input type="text" id="treatmentName" placeholder="Назва обробки"><input type="date" id="treatmentDate"><input type="date" id="treatmentNextDue" placeholder="Наступна"><input type="text" id="parasiteType" placeholder="Тип паразитів"><input type="text" id="medicationName" placeholder="Препарат"><input type="text" id="dosage" placeholder="Дозування"><textarea id="treatmentNotes" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveParasiteTreatment()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('parasiteModal')">Скасувати</button></div></div>
+
+    <div id="dentalModal" class="modal"><div class="modal-content"><h3>🦷 Додати процедуру</h3><input type="date" id="dentalDate"><input type="text" id="dentalType" placeholder="Тип процедури"><input type="text" id="dentalVet" placeholder="Лікар"><textarea id="dentalNotes" rows="2" placeholder="Нотатки"></textarea><input type="date" id="dentalNextDue" placeholder="Наступна"><button class="btn" onclick="saveDentalProcedure()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('dentalModal')">Скасувати</button></div></div>
+
+    <div id="familyModal" class="modal"><div class="modal-content"><h3>👨‍👩‍👧‍👦 Додати члена сім'ї</h3><input type="text" id="familyName" placeholder="Ім'я"><select id="familyRole"><option value="member">Член сім'ї</option><option value="admin">Адміністратор</option></select><input type="text" id="familyChatId" placeholder="Telegram Chat ID"><label><input type="checkbox" id="familyNotify" checked> Отримувати сповіщення</label><button class="btn" onclick="saveFamilyMember()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('familyModal')">Скасувати</button></div></div>
 
     <script>
-        let timelineChart, weeklyChart, weightChart, trainingChart, mentalChart, pottyChart, weightTrendChart;
-        let walkActive = false, sleepActive = false;
+        let timelineChart, weeklyChart, weightChart, trainingChart, mentalChart, pottyChart, measurementsChart;
         let currentDayOffset = 0;
+        let behaviorTypes = [];
 
-        const eventIcons = { 'feed': '🍖', 'walk': '🚶', 'sleep': '😴', 'toilet': '🚽', 'behavior': '⚠️' };
-        const eventNames = { 'feed': 'Годування', 'walk': 'Прогулянка', 'sleep': 'Сон', 'toilet': 'Туалет', 'behavior': 'Поведінка' };
+        const eventIcons = { 'feed': '🍖', 'walk': '🚶', 'sleep': '😴', 'toilet': '🚽', 'behavior': '⚠️', 'mental': '🧠' };
+        const eventNames = { 'feed': 'Годування', 'walk': 'Прогулянка', 'sleep': 'Сон', 'toilet': 'Туалет', 'behavior': 'Поведінка', 'mental': 'Ментальна' };
         const toiletTypes = { 'піся': '💧 Піся', 'кака': '💩 Кака' };
 
         function formatDuration(seconds) {
             if (!seconds || seconds <= 0) return '';
             const hours = Math.floor(seconds / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            if (hours > 0) {
-                return `${hours} год ${minutes} хв ${secs} сек`;
-            } else if (minutes > 0) {
-                return `${minutes} хв ${secs} сек`;
-            }
-            return `${secs} сек`;
+            if (hours > 0) return `${hours} год ${minutes} хв`;
+            return `${minutes} хв`;
         }
 
         function formatTimeHM(seconds) {
             const hours = Math.floor(seconds / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
-            if (hours > 0) {
-                return `${hours} год ${minutes} хв`;
-            }
+            if (hours > 0) return `${hours} год ${minutes} хв`;
             return `${minutes} хв`;
         }
 
@@ -920,20 +705,16 @@
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             const targetTab = document.getElementById(`tab-${tabName}`);
             if (targetTab) targetTab.classList.add('active');
-
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            if (btnElement) {
-                btnElement.classList.add('active');
-            } else {
-                const btn = document.querySelector(`.tab[data-tab="${tabName}"]`);
-                if (btn) btn.classList.add('active');
-            }
+            if (btnElement) btnElement.classList.add('active');
+            else document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
 
             if (tabName === 'weight') loadWeightData();
+            if (tabName === 'measurements') loadMeasurements();
             if (tabName === 'training') loadTrainingData();
             if (tabName === 'mental') loadMentalData();
             if (tabName === 'health') loadHealthData();
-            if (tabName === 'report') loadReport();
+            if (tabName === 'report') { loadReport(); document.getElementById('reportDate').value = new Date().toISOString().slice(0,10); }
             if (tabName === 'feed') loadEventsFeed();
             if (tabName === 'settings') loadSettings();
             if (tabName === 'vet') loadVetData();
@@ -942,74 +723,59 @@
         }
 
         function initTabs() {
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function(e) {
-                    const tabName = this.getAttribute('data-tab');
-                    switchTab(tabName, this);
-                });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() { switchTab(this.dataset.tab, this); });
             });
         }
 
-        // ========== РЕДАГУВАННЯ ПОДІЙ ==========
+        // ========== ШВИДКІ ДІЇ ==========
+        function showToiletMenu(btn) {
+            const submenu = document.getElementById('toiletSubmenu');
+            submenu.style.display = submenu.style.display === 'none' ? 'flex' : 'none';
+        }
 
+        async function loadBehaviorTypes() {
+            const res = await fetch('/api/behavior_types');
+            behaviorTypes = await res.json();
+            const container = document.getElementById('behaviorSubmenu');
+            container.innerHTML = behaviorTypes.map(b => `<button class="sub-action-btn" onclick="quickAddBehavior('${b.name}')">${b.icon} ${b.name}</button>`).join('');
+        }
+
+        function showBehaviorMenu(btn) {
+            const submenu = document.getElementById('behaviorSubmenu');
+            submenu.style.display = submenu.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        async function quickAddBehavior(type) {
+            await fetch('/api/add_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'behavior', subtype: type }) });
+            showToast('✅ Записано поведінку');
+            loadStats(); loadEventsFeed(); loadTimeline();
+        }
+
+        // ========== РЕДАГУВАННЯ ПОДІЙ ==========
         async function editEvent(eventId, eventType, eventSubtype, eventTimestamp, eventValue, eventNote) {
-            const modal = document.getElementById('editEventModal');
             document.getElementById('editEventId').value = eventId;
             document.getElementById('editEventType').value = eventType;
-
             const date = new Date(eventTimestamp * 1000);
-            const datetimeStr = date.toISOString().slice(0, 16);
-            document.getElementById('editEventDatetime').value = datetimeStr;
+            document.getElementById('editEventDatetime').value = date.toISOString().slice(0, 16);
             document.getElementById('editEventNote').value = eventNote || '';
 
             const extraFields = document.getElementById('editEventExtraFields');
             let extraHtml = '';
 
             if (eventType === 'feed') {
-                extraHtml = `
-                    <label style="font-size:13px; color:#666; margin-top:10px;">🍖 Кількість (г)</label>
-                    <input type="number" id="editEventValue" class="datetime-input" placeholder="г" value="${eventValue || ''}">
-                `;
+                extraHtml = `<label>🍖 Кількість (г)</label><input type="number" id="editEventValue" placeholder="г" value="${eventValue || ''}">`;
             } else if (eventType === 'walk' || eventType === 'sleep') {
                 const minutes = Math.floor((eventValue || 0) / 60);
-                extraHtml = `
-                    <label style="font-size:13px; color:#666; margin-top:10px;">⏱ Тривалість (хв)</label>
-                    <input type="number" id="editEventValue" class="datetime-input" placeholder="хв" value="${minutes || ''}">
-                `;
+                extraHtml = `<label>⏱ Тривалість (хв)</label><input type="number" id="editEventValue" placeholder="хв" value="${minutes || ''}">`;
             } else if (eventType === 'toilet') {
-                extraHtml = `
-                    <label style="font-size:13px; color:#666; margin-top:10px;">🚽 Тип</label>
-                    <select id="editEventSubtype" class="datetime-input">
-                        <option value="піся" ${eventSubtype === 'піся' ? 'selected' : ''}>💧 Піся</option>
-                        <option value="кака" ${eventSubtype === 'кака' ? 'selected' : ''}>💩 Кака</option>
-                    </select>
-                `;
+                extraHtml = `<label>🚽 Тип</label><select id="editEventSubtype"><option value="піся" ${eventSubtype === 'піся' ? 'selected' : ''}>💧 Піся</option><option value="кака" ${eventSubtype === 'кака' ? 'selected' : ''}>💩 Кака</option></select>`;
             } else if (eventType === 'mental') {
-                extraHtml = `
-                    <label style="font-size:13px; color:#666; margin-top:10px;">🧠 Тип активності</label>
-                    <select id="editEventSubtype" class="datetime-input">
-                        <option value="puzzle" ${eventSubtype === 'puzzle' ? 'selected' : ''}>🧩 Головоломка</option>
-                        <option value="scent" ${eventSubtype === 'scent' ? 'selected' : ''}>🔍 Пошук ласощів</option>
-                        <option value="shaping" ${eventSubtype === 'shaping' ? 'selected' : ''}>🎓 Вивчення трюків</option>
-                        <option value="sniffing" ${eventSubtype === 'sniffing' ? 'selected' : ''}>👃 Нюхальний килимок</option>
-                    </select>
-                    <label style="font-size:13px; color:#666; margin-top:10px;">⏱ Тривалість (хв)</label>
-                    <input type="number" id="editEventValue" class="datetime-input" placeholder="хв" value="${eventValue || 15}">
-                `;
+                extraHtml = `<label>🧠 Тип</label><input type="text" id="editEventSubtype" value="${eventSubtype || ''}"><label>⏱ Тривалість (хв)</label><input type="number" id="editEventValue" value="${eventValue || 15}">`;
             }
-
             extraFields.innerHTML = extraHtml;
-
-            let title = '✏️ Редагувати подію';
-            if (eventType === 'feed') title = '✏️ Редагувати годування';
-            else if (eventType === 'walk') title = '✏️ Редагувати прогулянку';
-            else if (eventType === 'sleep') title = '✏️ Редагувати сон';
-            else if (eventType === 'toilet') title = '✏️ Редагувати туалет';
-            else if (eventType === 'mental') title = '✏️ Редагувати ментальну активність';
-            document.getElementById('editModalTitle').innerHTML = title;
-
-            modal.style.display = 'flex';
+            document.getElementById('editModalTitle').innerHTML = `✏️ Редагувати ${eventNames[eventType] || 'подію'}`;
+            document.getElementById('editEventModal').style.display = 'flex';
         }
 
         async function saveEditedEvent() {
@@ -1017,55 +783,22 @@
             const eventType = document.getElementById('editEventType').value;
             const datetime = document.getElementById('editEventDatetime').value;
             const note = document.getElementById('editEventNote').value;
+            let value = null, subtype = null;
 
-            let value = null;
-            let subtype = null;
+            if (eventType === 'toilet') subtype = document.getElementById('editEventSubtype')?.value;
+            else if (eventType === 'mental') { subtype = document.getElementById('editEventSubtype')?.value; value = parseInt(document.getElementById('editEventValue')?.value) || 15; }
+            else if (eventType === 'feed') value = parseInt(document.getElementById('editEventValue')?.value) || null;
+            else if (eventType === 'walk' || eventType === 'sleep') value = (parseInt(document.getElementById('editEventValue')?.value) || 0) * 60;
 
-            if (eventType === 'toilet') {
-                subtype = document.getElementById('editEventSubtype').value;
-            } else if (eventType === 'mental') {
-                subtype = document.getElementById('editEventSubtype').value;
-                value = parseInt(document.getElementById('editEventValue').value) || 15;
-            } else if (eventType === 'feed') {
-                value = parseInt(document.getElementById('editEventValue').value) || null;
-            } else if (eventType === 'walk' || eventType === 'sleep') {
-                const minutes = parseInt(document.getElementById('editEventValue').value) || 0;
-                value = minutes * 60;
-            }
-
-            const updateData = {
-                datetime: datetime,
-                note: note,
-                type: eventType,
-                subtype: subtype,
-                value: value
-            };
-
-            try {
-                const res = await fetch(`/api/event/${eventId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updateData)
-                });
-                if (res.ok) {
-                    showToast('✅ Подію оновлено');
-                    closeModal('editEventModal');
-                    loadEventsFeed();
-                    loadStats();
-                    loadTimeline();
-                    if (eventType === 'mental') loadMentalData();
-                    if (eventType === 'training') loadTrainingData();
-                } else {
-                    showToast('❌ Помилка оновлення');
-                }
-            } catch(e) {
-                console.error(e);
-                showToast('❌ Помилка оновлення');
-            }
+            const res = await fetch(`/api/event/${eventId}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ datetime, note, type: eventType, subtype, value })
+            });
+            if (res.ok) { showToast('✅ Подію оновлено'); closeModal('editEventModal'); loadEventsFeed(); loadStats(); loadTimeline(); }
+            else showToast('❌ Помилка оновлення');
         }
 
-        // ========== ІСНУЮЧІ ФУНКЦІЇ ==========
-
+        // ========== ОСНОВНІ ФУНКЦІЇ ==========
         async function loadStats() {
             try {
                 const res = await fetch('/api/stats');
@@ -1074,18 +807,15 @@
                 document.getElementById('statWalk').textContent = formatTimeHM(d.walk_seconds || 0);
                 document.getElementById('statSleep').textContent = formatTimeHM(d.sleep_seconds || 0);
                 document.getElementById('statToilet').textContent = d.toilet;
+                document.getElementById('statBehavior').textContent = d.behavior || 0;
                 document.getElementById('petName').textContent = d.pet_name;
                 document.getElementById('currentDate').textContent = new Date().toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
-            } catch(e) { console.error('loadStats error:', e); }
+            } catch(e) { console.error(e); }
         }
 
         function changeDay(delta) {
             currentDayOffset += delta;
-            if (currentDayOffset === 0) {
-                document.getElementById('todayBtn').style.opacity = '0.5';
-            } else {
-                document.getElementById('todayBtn').style.opacity = '1';
-            }
+            document.getElementById('todayBtn').style.opacity = currentDayOffset === 0 ? '0.5' : '1';
             loadTimeline();
         }
 
@@ -1093,59 +823,28 @@
             try {
                 const res = await fetch(`/api/timeline?offset=${currentDayOffset}`);
                 const data = await res.json();
-
-                const sleepPoints = [], walkPoints = [], feedPoints = [], toiletPoints = [];
-
+                const sleepPoints = [], walkPoints = [], feedPoints = [], toiletPoints = [], behaviorPoints = [];
                 data.events.forEach(e => {
-                    const hour = new Date(e.start_time * 1000).getHours();
-                    const minute = new Date(e.start_time * 1000).getMinutes();
-                    const xValue = hour + minute / 60;
-
-                    if (e.type === 'sleep' && e.duration > 0) {
-                        sleepPoints.push({ x: xValue, y: 10, duration: e.duration });
-                    } else if (e.type === 'walk' && e.duration > 0) {
-                        walkPoints.push({ x: xValue, y: 20, duration: e.duration });
-                    } else if (e.type === 'feed') {
-                        feedPoints.push({ x: xValue, y: 30 });
-                    } else if (e.type === 'toilet') {
-                        toiletPoints.push({ x: xValue, y: 40 });
-                    }
+                    const hour = new Date(e.start_time * 1000).getHours() + new Date(e.start_time * 1000).getMinutes() / 60;
+                    if (e.type === 'sleep' && e.duration > 0) sleepPoints.push({ x: hour, y: 10, duration: e.duration });
+                    else if (e.type === 'walk' && e.duration > 0) walkPoints.push({ x: hour, y: 20, duration: e.duration });
+                    else if (e.type === 'feed') feedPoints.push({ x: hour, y: 30 });
+                    else if (e.type === 'toilet') toiletPoints.push({ x: hour, y: 40 });
+                    else if (e.type === 'behavior') behaviorPoints.push({ x: hour, y: 50 });
                 });
-
                 if (timelineChart) timelineChart.destroy();
-
                 timelineChart = new Chart(document.getElementById('timelineChart'), {
                     type: 'scatter',
-                    data: {
-                        datasets: [
-                            { label: 'Сон', data: sleepPoints, backgroundColor: '#9b59b6', borderColor: '#9b59b6', pointRadius: 10, pointHoverRadius: 14, pointStyle: 'rectRounded', showLine: false },
-                            { label: 'Прогулянка', data: walkPoints, backgroundColor: '#3498db', borderColor: '#3498db', pointRadius: 10, pointHoverRadius: 14, pointStyle: 'rectRounded', showLine: false },
-                            { label: 'Годування', data: feedPoints, backgroundColor: '#f39c12', borderColor: '#f39c12', pointRadius: 8, pointHoverRadius: 12, pointStyle: 'circle', showLine: false },
-                            { label: 'Туалет', data: toiletPoints, backgroundColor: '#2ecc71', borderColor: '#2ecc71', pointRadius: 8, pointHoverRadius: 12, pointStyle: 'circle', showLine: false }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        scales: {
-                            x: { title: { display: true, text: 'Година дня' }, min: 0, max: 24, ticks: { stepSize: 2 } },
-                            y: { display: false, min: 0, max: 50 }
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => {
-                                        const point = context.raw;
-                                        let label = context.dataset.label;
-                                        if (point.duration) label += `: ${formatDuration(point.duration)}`;
-                                        return label;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    data: { datasets: [
+                        { label: 'Сон', data: sleepPoints, backgroundColor: '#9b59b6', pointRadius: 10, pointStyle: 'rectRounded' },
+                        { label: 'Прогулянка', data: walkPoints, backgroundColor: '#3498db', pointRadius: 10, pointStyle: 'rectRounded' },
+                        { label: 'Годування', data: feedPoints, backgroundColor: '#f39c12', pointRadius: 8, pointStyle: 'circle' },
+                        { label: 'Туалет', data: toiletPoints, backgroundColor: '#2ecc71', pointRadius: 8, pointStyle: 'circle' },
+                        { label: 'Поведінка', data: behaviorPoints, backgroundColor: '#e74c3c', pointRadius: 8, pointStyle: 'triangle' }
+                    ]},
+                    options: { responsive: true, scales: { x: { title: { display: true, text: 'Година дня' }, min: 0, max: 24, ticks: { stepSize: 2 } }, y: { display: false, min: 0, max: 60 } } }
                 });
-            } catch(e) { console.error('loadTimeline error:', e); }
+            } catch(e) { console.error(e); }
         }
 
         async function loadEventsFeed() {
@@ -1156,37 +855,11 @@
                     let title = eventNames[e.type] || e.type;
                     let durationText = '';
                     if (e.type === 'toilet' && e.subtype) title = toiletTypes[e.subtype] || e.subtype;
-                    if (e.type === 'behavior' && e.subtype) title = `Поведінка: ${e.subtype}`;
+                    if (e.type === 'behavior') title = `⚠️ ${e.subtype || 'Поведінка'}`;
                     if (e.value && e.value > 0) durationText = `⏱ ${formatDuration(e.value)}`;
-                    return `
-                        <div class="event-card">
-                            <div class="event-time-large"><div class="event-hour">${e.time_hour}</div><div class="event-minute">${e.time_str}</div></div>
-                            <div class="event-icon-large">${eventIcons[e.type] || '📌'}</div>
-                            <div class="event-details">
-                                <div class="event-title-large">${title}</div>
-                                ${durationText ? `<div class="event-duration">${durationText}</div>` : ''}
-                            </div>
-                            <button class="edit-event-btn" onclick="editEvent(${e.id}, '${e.type}', '${e.subtype || ''}', ${e.timestamp}, ${e.value || 0}, '${(e.note || '').replace(/'/g, "\\'")}')">✏️</button>
-                            <button class="delete-event-btn" onclick="deleteEvent(${e.id})">🗑</button>
-                        </div>`;
+                    return `<div class="event-card"><div class="event-time-large"><div class="event-hour">${e.time_hour}</div><div class="event-minute">${e.time_str}</div></div><div class="event-icon-large">${eventIcons[e.type] || '📌'}</div><div class="event-details"><div class="event-title-large">${title}</div>${durationText ? `<div class="event-duration">${durationText}</div>` : ''}</div><button class="edit-event-btn" onclick="editEvent(${e.id}, '${e.type}', '${e.subtype || ''}', ${e.timestamp}, ${e.value || 0}, '${(e.note || '').replace(/'/g, "\\'")}')">✏️</button><button class="delete-event-btn" onclick="deleteEvent(${e.id})">🗑</button></div>`;
                 }).join('') || '<div class="empty-state">📭 Немає подій</div>';
-            } catch(e) { console.error('loadEventsFeed error:', e); }
-        }
-
-        async function loadWeekly() {
-            try {
-                const res = await fetch('/api/weekly');
-                const d = await res.json();
-                if (weeklyChart) weeklyChart.destroy();
-                weeklyChart = new Chart(document.getElementById('weeklyChart'), {
-                    type: 'bar',
-                    data: { labels: d.dates, datasets: [
-                        { label: 'Прогулянки (хв)', data: d.walk, backgroundColor: '#3498db', borderRadius: 8 },
-                        { label: 'Сон (год)', data: d.sleep, backgroundColor: '#9b59b6', borderRadius: 8 }
-                    ]},
-                    options: { responsive: true, maintainAspectRatio: true }
-                });
-            } catch(e) { console.error('loadWeekly error:', e); }
+            } catch(e) { console.error(e); }
         }
 
         async function deleteEvent(id) {
@@ -1204,41 +877,38 @@
         }
 
         async function toggleWalk() {
-            try {
-                const status = await fetch('/api/walk_status').then(r => r.json());
-                if (status.active) {
-                    const result = await fetch('/api/stop_walk', { method: 'POST' }).then(r => r.json());
-                    showToast(`✅ Прогулянка завершена! ${formatDuration(result.duration)}`);
-                    document.getElementById('walkIcon').innerHTML = '🚶';
-                    document.getElementById('walkText').innerHTML = 'Прогулянка';
-                } else {
-                    await fetch('/api/start_walk', { method: 'POST' });
-                    showToast('🚶 Прогулянка розпочата');
-                    document.getElementById('walkIcon').innerHTML = '⏹️';
-                    document.getElementById('walkText').innerHTML = 'Зупинити';
-                }
-                loadStats(); loadEventsFeed(); loadTimeline();
-            } catch(e) { console.error('toggleWalk error:', e); }
+            const status = await fetch('/api/walk_status').then(r => r.json());
+            if (status.active) {
+                const result = await fetch('/api/stop_walk', { method: 'POST' }).then(r => r.json());
+                showToast(`✅ Прогулянка завершена! ${formatDuration(result.duration)}`);
+                document.getElementById('walkIcon').innerHTML = '🚶';
+                document.getElementById('walkText').innerHTML = 'Прогулянка';
+            } else {
+                await fetch('/api/start_walk', { method: 'POST' });
+                showToast('🚶 Прогулянка розпочата');
+                document.getElementById('walkIcon').innerHTML = '⏹️';
+                document.getElementById('walkText').innerHTML = 'Зупинити';
+            }
+            loadStats(); loadEventsFeed(); loadTimeline();
         }
 
         async function toggleSleep() {
-            try {
-                const status = await fetch('/api/sleep_status').then(r => r.json());
-                if (status.active) {
-                    const result = await fetch('/api/stop_sleep', { method: 'POST' }).then(r => r.json());
-                    showToast(`✅ Сон завершено! ${formatDuration(result.duration)}`);
-                    document.getElementById('sleepIcon').innerHTML = '😴';
-                    document.getElementById('sleepText').innerHTML = 'Сон';
-                } else {
-                    await fetch('/api/start_sleep', { method: 'POST' });
-                    showToast('💤 Сон розпочато');
-                    document.getElementById('sleepIcon').innerHTML = '⏹️';
-                    document.getElementById('sleepText').innerHTML = 'Зупинити';
-                }
-                loadStats(); loadEventsFeed(); loadTimeline();
-            } catch(e) { console.error('toggleSleep error:', e); }
+            const status = await fetch('/api/sleep_status').then(r => r.json());
+            if (status.active) {
+                const result = await fetch('/api/stop_sleep', { method: 'POST' }).then(r => r.json());
+                showToast(`✅ Сон завершено! ${formatDuration(result.duration)}`);
+                document.getElementById('sleepIcon').innerHTML = '😴';
+                document.getElementById('sleepText').innerHTML = 'Сон';
+            } else {
+                await fetch('/api/start_sleep', { method: 'POST' });
+                showToast('💤 Сон розпочато');
+                document.getElementById('sleepIcon').innerHTML = '⏹️';
+                document.getElementById('sleepText').innerHTML = 'Зупинити';
+            }
+            loadStats(); loadEventsFeed(); loadTimeline();
         }
 
+        // ========== ВАГА ==========
         async function loadWeightData() {
             try {
                 const res = await fetch('/api/weight');
@@ -1247,15 +917,95 @@
                 if (d.dates.length > 0) {
                     weightChart = new Chart(document.getElementById('weightChart'), {
                         type: 'line',
-                        data: { labels: d.dates, datasets: [{ label: 'Вага (кг)', data: d.weights, borderColor: '#3498db', fill: false, tension: 0.2 }] },
-                        options: { responsive: true, maintainAspectRatio: true }
+                        data: { labels: d.dates, datasets: [{ label: 'Вага (кг)', data: d.weights, borderColor: '#3498db', fill: false, tension: 0.2 }] }
                     });
                 }
-                document.getElementById('weightList').innerHTML = d.history.map(w => `<div class="event-card"><div class="event-icon-large">⚖️</div><div class="event-details"><div class="event-title-large">${w.weight} кг</div><div class="event-subtitle">${w.date}</div></div></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
+                document.getElementById('weightList').innerHTML = d.history.map(w => `<div class="event-card"><div class="event-icon-large">⚖️</div><div class="event-details"><div class="event-title-large">${w.weight} кг</div><div class="event-subtitle">${w.date}</div></div><button class="edit-event-btn" onclick="editWeight(${w.id}, ${w.weight}, '${w.date}')">✏️</button><button class="delete-event-btn" onclick="deleteWeight(${w.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
                 document.getElementById('foodInfo').innerHTML = `🐾 Рекомендована порція: <strong>${d.daily_food}</strong> г/день<br><small>(по ${Math.round(d.daily_food/4)} г на годування)</small>`;
-            } catch(e) { console.error('loadWeightData error:', e); }
+            } catch(e) { console.error(e); }
         }
 
+        function editWeight(id, weight, date) {
+            document.getElementById('editWeightId').value = id;
+            document.getElementById('editWeightValue').value = weight;
+            document.getElementById('editWeightDatetime').value = date.replace(' ', 'T');
+            document.getElementById('editWeightModal').style.display = 'flex';
+        }
+
+        async function saveEditedWeight() {
+            const id = document.getElementById('editWeightId').value;
+            const weight = document.getElementById('editWeightValue').value;
+            const datetime = document.getElementById('editWeightDatetime').value;
+            await fetch(`/api/weight/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weight: parseFloat(weight), datetime }) });
+            closeModal('editWeightModal');
+            showToast('⚖️ Оновлено');
+            loadWeightData(); loadStats();
+        }
+
+        async function deleteWeight(id) {
+            if (confirm('Видалити запис ваги?')) {
+                await fetch(`/api/weight/${id}`, { method: 'DELETE' });
+                showToast('🗑 Видалено');
+                loadWeightData();
+            }
+        }
+
+        function showWeightModal() { document.getElementById('weightModal').style.display = 'flex'; }
+        async function saveWeight() {
+            const w = document.getElementById('weightInput').value;
+            if (w) {
+                await fetch('/api/add_weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weight: parseFloat(w) }) });
+                closeModal('weightModal');
+                showToast('⚖️ Збережено');
+                loadWeightData(); loadStats();
+                document.getElementById('weightInput').value = '';
+            }
+        }
+
+        // ========== ПРОПОРЦІЇ ==========
+        async function loadMeasurements() {
+            try {
+                const res = await fetch('/api/measurements');
+                const d = await res.json();
+                if (measurementsChart) measurementsChart.destroy();
+                if (d.measurements.length > 0) {
+                    const labels = d.measurements.map(m => m.date.split(' ')[0]);
+                    measurementsChart = new Chart(document.getElementById('measurementsChart'), {
+                        type: 'line',
+                        data: { labels: labels, datasets: [
+                            { label: 'Шия (см)', data: d.measurements.map(m => m.neck_cm || 0), borderColor: '#3498db', fill: false },
+                            { label: 'Груди (см)', data: d.measurements.map(m => m.chest_cm || 0), borderColor: '#e74c3c', fill: false },
+                            { label: 'Талія (см)', data: d.measurements.map(m => m.waist_cm || 0), borderColor: '#2ecc71', fill: false }
+                        ]}
+                    });
+                }
+                document.getElementById('measurementsList').innerHTML = d.measurements.map(m => `<div class="event-card"><div class="event-icon-large">📏</div><div class="event-details"><div class="event-title-large">${m.date}</div><div class="event-subtitle">Шия: ${m.neck_cm || '—'}см | Груди: ${m.chest_cm || '—'}см | Талія: ${m.waist_cm || '—'}см</div>${m.note ? `<div class="event-duration">📝 ${m.note}</div>` : ''}</div><button class="edit-event-btn" onclick="editMeasurement(${m.id})">✏️</button><button class="delete-event-btn" onclick="deleteMeasurement(${m.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        function showMeasurementModal() { document.getElementById('measurementModal').style.display = 'flex'; }
+        async function saveMeasurement() {
+            const data = {
+                neck_cm: parseFloat(document.getElementById('neckCm').value) || null,
+                chest_cm: parseFloat(document.getElementById('chestCm').value) || null,
+                waist_cm: parseFloat(document.getElementById('waistCm').value) || null,
+                length_cm: parseFloat(document.getElementById('lengthCm').value) || null,
+                height_cm: parseFloat(document.getElementById('heightCm').value) || null,
+                note: document.getElementById('measurementNote').value
+            };
+            await fetch('/api/measurements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('measurementModal');
+            showToast('📏 Заміри збережено');
+            loadMeasurements();
+            document.getElementById('neckCm').value = '';
+            document.getElementById('chestCm').value = '';
+            document.getElementById('waistCm').value = '';
+            document.getElementById('lengthCm').value = '';
+            document.getElementById('heightCm').value = '';
+            document.getElementById('measurementNote').value = '';
+        }
+
+        // ========== ТРЕНУВАННЯ ==========
         async function loadTrainingData() {
             try {
                 const res = await fetch('/api/training');
@@ -1265,13 +1015,41 @@
                     trainingChart = new Chart(document.getElementById('trainingChart'), {
                         type: 'bar',
                         data: { labels: d.commands, datasets: [{ label: 'Успішність', data: d.scores, backgroundColor: '#9b59b6', borderRadius: 8 }] },
-                        options: { responsive: true, maintainAspectRatio: true, scales: { y: { max: 5 } } }
+                        options: { scales: { y: { max: 5 } } }
                     });
                 }
-                document.getElementById('trainingList').innerHTML = d.history.map(t => `<div class="event-card"><div class="event-icon-large">🏋️</div><div class="event-details"><div class="event-title-large">${t.command}</div><div class="event-subtitle">${t.duration} хв, успішність ${t.success_rate}/5</div><div class="event-duration">${t.date}</div></div></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
-            } catch(e) { console.error('loadTrainingData error:', e); }
+                const commandSelect = document.getElementById('commandInput');
+                commandSelect.innerHTML = d.types.map(t => `<option value="${t.name}">${t.icon} ${t.name}</option>`).join('');
+                document.getElementById('trainingList').innerHTML = d.history.map(t => `<div class="event-card"><div class="event-icon-large">🏋️</div><div class="event-details"><div class="event-title-large">${t.command}</div><div class="event-subtitle">${t.duration} хв, успішність ${t.success_rate}/5</div><div class="event-duration">${t.date}</div></div><button class="edit-event-btn" onclick="editTraining(${t.id}, '${t.command}', ${t.duration}, ${t.success_rate}, '${t.date}')">✏️</button><button class="delete-event-btn" onclick="deleteTraining(${t.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
+            } catch(e) { console.error(e); }
         }
 
+        function showTrainingModal() { document.getElementById('trainingModal').style.display = 'flex'; }
+        async function saveTraining() {
+            await fetch('/api/add_training', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                command: document.getElementById('commandInput').value,
+                duration: parseInt(document.getElementById('durationInput').value) || 10,
+                success_rate: parseInt(document.getElementById('successInput').value)
+            }) });
+            closeModal('trainingModal');
+            showToast('🏋️ Збережено');
+            loadTrainingData();
+        }
+
+        function showAddTrainingTypeModal() { document.getElementById('addTrainingTypeModal').style.display = 'flex'; }
+        async function saveTrainingType() {
+            const name = document.getElementById('newTrainingType').value;
+            const icon = document.getElementById('newTrainingIcon').value;
+            if (name) {
+                await fetch('/api/training_types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+                closeModal('addTrainingTypeModal');
+                showToast('✅ Команду додано');
+                loadTrainingData();
+                document.getElementById('newTrainingType').value = '';
+            }
+        }
+
+        // ========== МЕНТАЛЬНА АКТИВНІСТЬ ==========
         async function loadMentalData() {
             try {
                 const res = await fetch('/api/mental');
@@ -1279,62 +1057,134 @@
                 if (mentalChart) mentalChart.destroy();
                 mentalChart = new Chart(document.getElementById('mentalChart'), {
                     type: 'bar',
-                    data: { labels: d.dates, datasets: [{ label: 'Ментальна активність (хв)', data: d.durations, backgroundColor: '#e67e22', borderRadius: 8 }] },
-                    options: { responsive: true, maintainAspectRatio: true }
+                    data: { labels: d.dates, datasets: [{ label: 'Ментальна активність (хв)', data: d.durations, backgroundColor: '#e67e22', borderRadius: 8 }] }
                 });
                 if (pottyChart) pottyChart.destroy();
                 if (d.potty_types.length > 0) {
                     pottyChart = new Chart(document.getElementById('pottyChart'), {
                         type: 'pie',
-                        data: { labels: d.potty_types, datasets: [{ data: d.potty_counts, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'] }] },
-                        options: { responsive: true, maintainAspectRatio: true }
+                        data: { labels: d.potty_types, datasets: [{ data: d.potty_counts, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'] }] }
                     });
                 }
+                const mentalSelect = document.getElementById('mentalTypeInput');
+                mentalSelect.innerHTML = d.types.map(t => `<option value="${t.name}">${t.icon} ${t.name}</option>`).join('');
+                document.getElementById('mentalActivitiesList').innerHTML = d.activities.map(a => `<div class="event-card"><div class="event-icon-large">🧠</div><div class="event-details"><div class="event-title-large">${a.activity_type}</div><div class="event-subtitle">${a.duration} хв, складність ${a.difficulty}/5</div><div class="event-duration">${a.date}</div></div><button class="edit-event-btn" onclick="editMental(${a.id}, '${a.activity_type}', ${a.duration}, '${a.date}')">✏️</button><button class="delete-event-btn" onclick="deleteMental(${a.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає активностей</div>';
                 const avg = d.avg_mental || 0;
                 document.getElementById('mentalAdvice').innerHTML = avg < 15 ? '⚠️ Низьке ментальне навантаження! Рекомендується 15+ хв інтелектуальних ігор щодня.' : '✅ Чудовий баланс! Продовжуйте в тому ж дусі.';
-            } catch(e) { console.error('loadMentalData error:', e); }
+            } catch(e) { console.error(e); }
         }
 
+        function showMentalModal() { document.getElementById('mentalModal').style.display = 'flex'; }
+        async function saveMental() {
+            await fetch('/api/add_mental', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                activity_type: document.getElementById('mentalTypeInput').value,
+                duration: parseInt(document.getElementById('mentalDurationInput').value) || 15
+            }) });
+            closeModal('mentalModal');
+            showToast('🧠 Збережено');
+            loadMentalData();
+        }
+
+        function showAddMentalTypeModal() { document.getElementById('addMentalTypeModal').style.display = 'flex'; }
+        async function saveMentalType() {
+            const name = document.getElementById('newMentalType').value;
+            const icon = document.getElementById('newMentalIcon').value;
+            if (name) {
+                await fetch('/api/mental_types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon }) });
+                closeModal('addMentalTypeModal');
+                showToast('✅ Активність додано');
+                loadMentalData();
+                document.getElementById('newMentalType').value = '';
+            }
+        }
+
+        // ========== ЗДОРОВ'Я ==========
         async function loadHealthData() {
             try {
                 const res = await fetch('/api/health');
                 const d = await res.json();
-                document.getElementById('remindersList').innerHTML = d.reminders.length > 0 ? d.reminders.map(m => `<div class="event-card"><div class="event-icon-large">💊</div><div class="event-details"><div class="event-title-large">${m.title}</div><div class="event-subtitle">⏰ ${m.next_due_str}</div></div><button onclick="completeReminder(${m.id})" style="background:#2ecc71; border:none; border-radius:20px; padding:6px 12px; color:white;">✅ Виконано</button></div>`).join('') : '<div class="empty-state">📭 Немає активних нагадувань</div>';
+                document.getElementById('remindersList').innerHTML = d.reminders.map(m => `<div class="event-card"><div class="event-icon-large">💊</div><div class="event-details"><div class="event-title-large">${m.title}</div><div class="event-subtitle">⏰ ${m.next_due_str} о ${m.reminder_time || '09:00'}</div></div><button onclick="completeReminder(${m.id})" style="background:#2ecc71; border:none; border-radius:20px; padding:6px 12px; color:white;">✅ Виконано</button></div>`).join('') || '<div class="empty-state">📭 Немає активних нагадувань</div>';
                 document.getElementById('symptomsList').innerHTML = d.symptoms.map(s => `<div class="event-card"><div class="event-icon-large">🌡️</div><div class="event-details"><div class="event-title-large">${s.date}</div><div class="event-subtitle">${s.temperature ? s.temperature + '°C | ' : ''}Апетит: ${s.appetite}/5 | Настрій: ${s.mood}</div>${s.note ? `<div class="event-duration">📝 ${s.note}</div>` : ''}</div></div>`).join('') || '<div class="empty-state">📭 Немає записів</div>';
                 document.getElementById('allergiesList').innerHTML = d.allergies.map(a => `<div class="event-card"><div class="event-icon-large">⚠️</div><div class="event-details"><div class="event-title-large">${a.product}</div><div class="event-subtitle">Реакція: ${a.reaction || 'не вказано'} | Ступінь: ${a.severity}/5</div></div><button class="delete-event-btn" onclick="deleteAllergy(${a.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає алергій</div>';
-            } catch(e) { console.error('loadHealthData error:', e); }
+            } catch(e) { console.error(e); }
         }
 
+        function showReminderModal() { document.getElementById('reminderModal').style.display = 'flex'; }
+        async function saveReminder() {
+            const title = document.getElementById('reminderTitle').value;
+            const interval = document.getElementById('reminderInterval').value;
+            if (!title || !interval) return;
+            await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                title, description: document.getElementById('reminderDesc').value,
+                interval_days: parseInt(interval), reminder_time: document.getElementById('reminderTime').value
+            }) });
+            closeModal('reminderModal');
+            showToast('💊 Додано');
+            loadHealthData();
+        }
+
+        async function completeReminder(id) {
+            await fetch('/api/complete_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+            showToast('✅ Виконано');
+            loadHealthData();
+        }
+
+        // ========== ЗВІТИ ==========
         async function loadReport() {
-            try {
-                const res = await fetch('/api/report');
-                const d = await res.json();
-                document.getElementById('reportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p><p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p><p>🚽 Туалет: ${d.toilet}</p><p>🧠 Ментальне: ${d.mental_minutes} хв</p><p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>`;
-            } catch(e) { console.error('loadReport error:', e); }
+            const res = await fetch('/api/report');
+            const d = await res.json();
+            document.getElementById('reportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p><p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p><p>🚽 Туалет: ${d.toilet}</p><p>⚠️ Поведінка: ${d.behavior || 0}</p><p>🧠 Ментальне: ${d.mental_minutes} хв</p><p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>`;
         }
 
+        async function loadDayReport() {
+            const date = document.getElementById('reportDate').value;
+            const res = await fetch(`/api/report/day?date=${date}`);
+            const d = await res.json();
+            document.getElementById('dayReportContent').innerHTML = `
+                <p>📅 <strong>Звіт за ${d.date}</strong></p>
+                <p>🍖 Годувань: ${d.feed}</p>
+                <p>🚶 Прогулянок: ${d.walk_minutes} хв</p>
+                <p>😴 Сну: ${d.sleep_hours} год</p>
+                <p>🚽 Туалет: ${d.toilet}</p>
+                <p>⚠️ Поведінка: ${d.behavior}</p>
+                <p>🧠 Ментальне: ${d.mental}</p>
+                ${d.events.length > 0 ? `<p><strong>📋 Події дня:</strong></p><ul>${d.events.map(e => `<li>${e.time_hour} - ${e.type}${e.subtype ? ` (${e.subtype})` : ''}</li>`).join('')}</ul>` : ''}
+            `;
+        }
+
+        async function sendReport() {
+            const res = await fetch('/api/send_report');
+            const d = await res.json();
+            showToast(d.message);
+        }
+
+        async function sendDayReport() {
+            const date = document.getElementById('reportDate').value;
+            const chatId = document.getElementById('settingGroupChatId').value || document.getElementById('settingTelegramChatId').value;
+            await fetch('/api/send_daily_report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, chat_id: chatId }) });
+            showToast('📨 Звіт надіслано');
+        }
+
+        // ========== ІНШІ ФУНКЦІЇ ==========
         async function loadInsight() {
-            try {
-                const res = await fetch('/api/insight');
-                const d = await res.json();
-                document.getElementById('insightText').innerHTML = d.insight;
-            } catch(e) { console.error('loadInsight error:', e); }
+            const res = await fetch('/api/insight');
+            const d = await res.json();
+            document.getElementById('insightText').innerHTML = d.insight;
         }
 
         async function loadSettings() {
-            try {
-                const res = await fetch('/api/settings');
-                const d = await res.json();
-                document.getElementById('settingPetName').value = d.pet_name || 'Айла';
-                document.getElementById('settingBirthDate').value = d.birth_date || '';
-                document.getElementById('settingFoodDensity').value = d.food_density_calories || '3800';
-                document.getElementById('settingPlannedMeals').value = d.planned_meals || '4';
-                document.getElementById('settingPlannedSleep').value = d.planned_sleep_hours || '14';
-                document.getElementById('settingTargetWeight').value = d.target_weight || '8.0';
-                document.getElementById('settingPottyReminder').value = d.potty_reminder_minutes || '25';
-                document.getElementById('settingTelegramToken').value = d.telegram_bot_token || '';
-                document.getElementById('settingTelegramChatId').value = d.telegram_chat_id || '';
-            } catch(e) { console.error('loadSettings error:', e); }
+            const res = await fetch('/api/settings');
+            const d = await res.json();
+            document.getElementById('settingPetName').value = d.pet_name || 'Айла';
+            document.getElementById('settingBirthDate').value = d.birth_date || '';
+            document.getElementById('settingFoodDensity').value = d.food_density_calories || '3800';
+            document.getElementById('settingPlannedMeals').value = d.planned_meals || '4';
+            document.getElementById('settingPlannedSleep').value = d.planned_sleep_hours || '14';
+            document.getElementById('settingTargetWeight').value = d.target_weight || '8.0';
+            document.getElementById('settingPottyReminder').value = d.potty_reminder_minutes || '25';
+            document.getElementById('settingTelegramToken').value = d.telegram_bot_token || '';
+            document.getElementById('settingTelegramChatId').value = d.telegram_chat_id || '';
+            document.getElementById('settingGroupChatId').value = d.group_chat_id || '';
         }
 
         async function saveAllSettings() {
@@ -1347,7 +1197,8 @@
                 target_weight: document.getElementById('settingTargetWeight').value,
                 potty_reminder_minutes: document.getElementById('settingPottyReminder').value,
                 telegram_bot_token: document.getElementById('settingTelegramToken').value,
-                telegram_chat_id: document.getElementById('settingTelegramChatId').value
+                telegram_chat_id: document.getElementById('settingTelegramChatId').value,
+                group_chat_id: document.getElementById('settingGroupChatId').value
             };
             await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
             showToast('⚙️ Налаштування збережено');
@@ -1363,66 +1214,121 @@
             showToast(d.message);
         }
 
-        async function saveWeight() {
-            const w = document.getElementById('weightInput').value;
-            if (w) {
-                await fetch('/api/add_weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weight: parseFloat(w) }) });
-                closeModal('weightModal');
-                showToast('⚖️ Збережено');
-                loadWeightData(); loadStats();
-                document.getElementById('weightInput').value = '';
+        // Ветпаспорт, Тренди, Сім'я (скорочені версії)
+        async function loadVetData() {
+            try {
+                const vac = await fetch('/api/vaccinations').then(r => r.json());
+                document.getElementById('vaccinationsList').innerHTML = Array.isArray(vac) && vac.length ? vac.map(v => `<div class="event-card"><div class="event-icon-large">💉</div><div class="event-details"><div class="event-title-large">${v.vaccine_name}</div><div class="event-subtitle">Дата: ${v.vaccine_date} | Лікар: ${v.vet_name || '—'}</div>${v.next_due ? `<div class="event-duration">⏰ Наступне: ${v.next_due}</div>` : ''}</div></div>`).join('') : '<div class="empty-state">📭 Немає записів</div>';
+                const para = await fetch('/api/parasite_treatments').then(r => r.json());
+                document.getElementById('parasiteList').innerHTML = Array.isArray(para) && para.length ? para.map(p => `<div class="event-card"><div class="event-icon-large">🪱</div><div class="event-details"><div class="event-title-large">${p.treatment_name}</div><div class="event-subtitle">Дата: ${p.treatment_date} | Препарат: ${p.medication_name || '—'}</div>${p.next_due ? `<div class="event-duration">⏰ Наступна: ${p.next_due}</div>` : ''}</div></div>`).join('') : '<div class="empty-state">📭 Немає записів</div>';
+                const dental = await fetch('/api/dental_history').then(r => r.json());
+                document.getElementById('dentalList').innerHTML = Array.isArray(dental) && dental.length ? dental.map(d => `<div class="event-card"><div class="event-icon-large">🦷</div><div class="event-details"><div class="event-title-large">${d.procedure_type}</div><div class="event-subtitle">Дата: ${d.procedure_date} | Лікар: ${d.vet_name || '—'}</div>${d.notes ? `<div class="event-duration">📝 ${d.notes}</div>` : ''}</div></div>`).join('') : '<div class="empty-state">📭 Немає записів</div>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadWeightTrend() {
+            const res = await fetch('/api/weight_trend');
+            const data = await res.json();
+            if (data.error || !data.current_weight) document.getElementById('weightTrendInfo').innerHTML = '<div class="empty-state">📭 Недостатньо даних</div>';
+            else document.getElementById('weightTrendInfo').innerHTML = `<p><strong>Поточна вага:</strong> ${data.current_weight} кг</p><p><strong>Тренд:</strong> ${data.trend === 'up' ? '📈' : data.trend === 'down' ? '📉' : '➡️'} ${data.change_per_week} кг/тиждень</p><p><strong>Прогноз:</strong> ${data.prediction_next_week} кг</p>`;
+        }
+
+        async function loadActivityTrend() {
+            const res = await fetch('/api/activity_trend');
+            const data = await res.json();
+            if (data.error || !data.avg_walk_minutes) document.getElementById('activityTrendInfo').innerHTML = '<div class="empty-state">📭 Недостатньо даних</div>';
+            else document.getElementById('activityTrendInfo').innerHTML = `<p><strong>Прогулянка:</strong> ${data.avg_walk_minutes} хв/день</p><p><strong>Сон:</strong> ${data.avg_sleep_hours} год/день</p><p><strong>Тренд:</strong> ${data.walk_trend === 'up' ? '📈' : data.walk_trend === 'down' ? '📉' : '➡️'} ${data.walk_change_percent}%</p><p><strong>Рекомендація:</strong> ${data.recommendation}</p>`;
+        }
+
+        async function loadSmartReminders() {
+            const res = await fetch('/api/smart_reminders');
+            const data = await res.json();
+            const reminders = data.reminders || [];
+            const triggered = data.triggered || [];
+            const triggeredIds = new Set(triggered.map(t => t.id));
+            document.getElementById('smartRemindersList').innerHTML = reminders.map(r => `<div class="event-card ${triggeredIds.has(r.id) ? 'reminder-triggered' : ''}"><div class="event-icon-large">🔔</div><div class="event-details"><div class="event-title-large">${r.title}</div><div class="event-subtitle">${r.description}</div>${triggeredIds.has(r.id) ? '<div class="event-duration">⚠️ ПОТРІБНА УВАГА!</div>' : ''}</div></div>`).join('') || '<div class="empty-state">📭 Немає нагадувань</div>';
+        }
+
+        async function checkSmartReminders() {
+            showToast('🔍 Перевірка...');
+            await fetch('/api/check_smart_reminders', { method: 'POST' });
+            showToast('✅ Перевірено');
+            loadSmartReminders();
+        }
+
+        async function loadFamilyMembers() {
+            const res = await fetch('/api/family_members');
+            const data = await res.json();
+            document.getElementById('familyMembersList').innerHTML = Array.isArray(data) && data.length ? data.map(m => `<div class="event-card"><div class="event-icon-large">${m.role === 'admin' ? '👑' : '👤'}</div><div class="event-details"><div class="event-title-large">${m.name}</div><div class="event-subtitle">Роль: ${m.role} | Сповіщення: ${m.notify_enabled ? '✅' : '❌'}</div></div><button class="delete-event-btn" onclick="deleteFamilyMember(${m.id})">🗑</button></div>`).join('') : '<div class="empty-state">👨‍👩‍👧‍👦 Немає членів сім\'ї</div>';
+        }
+
+        function showFamilyModal() { document.getElementById('familyModal').style.display = 'flex'; }
+        async function saveFamilyMember() {
+            const data = { name: document.getElementById('familyName').value, role: document.getElementById('familyRole').value, chat_id: document.getElementById('familyChatId').value || null, notify: document.getElementById('familyNotify').checked };
+            await fetch('/api/family_members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('familyModal');
+            showToast('✅ Додано');
+            loadFamilyMembers();
+        }
+
+        async function deleteFamilyMember(id) {
+            if (confirm('Видалити?')) {
+                await fetch('/api/family_members', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                loadFamilyMembers();
             }
         }
 
-        async function saveTraining() {
-            await fetch('/api/add_training', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                command: document.getElementById('commandInput').value,
-                duration: parseInt(document.getElementById('durationInput').value) || 10,
-                success_rate: parseInt(document.getElementById('successInput').value)
-            }) });
-            closeModal('trainingModal');
-            showToast('🏋️ Збережено');
-            loadTrainingData();
+        async function sendFamilyNotification() {
+            const message = document.getElementById('notificationMessage').value;
+            if (!message) { showToast('❌ Введіть повідомлення'); return; }
+            await fetch('/api/notify_family', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
+            showToast('📨 Надіслано');
+            document.getElementById('notificationMessage').value = '';
         }
 
-        async function saveMental() {
-            await fetch('/api/add_mental', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                activity_type: document.getElementById('mentalTypeInput').value,
-                duration: parseInt(document.getElementById('mentalDurationInput').value) || 15,
-                difficulty: 3
-            }) });
-            closeModal('mentalModal');
-            showToast('🧠 Збережено');
-            loadMentalData();
+        function showVaccinationModal() { document.getElementById('vetModal').style.display = 'flex'; }
+        async function saveVaccination() {
+            const data = { vaccine_name: document.getElementById('vaccineName').value, vaccine_date: document.getElementById('vaccineDate').value, next_due: document.getElementById('vaccineNextDue').value, series: document.getElementById('vaccineSeries').value, vet_name: document.getElementById('vetName').value, clinic_name: document.getElementById('clinicName').value, notes: document.getElementById('vaccineNotes').value };
+            await fetch('/api/vaccinations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('vetModal');
+            showToast('💉 Додано');
+            loadVetData();
         }
 
+        function showParasiteModal() { document.getElementById('parasiteModal').style.display = 'flex'; }
+        async function saveParasiteTreatment() {
+            const data = { name: document.getElementById('treatmentName').value, treatment_date: document.getElementById('treatmentDate').value, next_due: document.getElementById('treatmentNextDue').value, parasite_type: document.getElementById('parasiteType').value, medication: document.getElementById('medicationName').value, dosage: document.getElementById('dosage').value, notes: document.getElementById('treatmentNotes').value };
+            await fetch('/api/parasite_treatments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('parasiteModal');
+            showToast('🪱 Додано');
+            loadVetData();
+        }
+
+        function showDentalModal() { document.getElementById('dentalModal').style.display = 'flex'; }
+        async function saveDentalProcedure() {
+            const data = { procedure_date: document.getElementById('dentalDate').value, procedure_type: document.getElementById('dentalType').value, vet_name: document.getElementById('dentalVet').value, notes: document.getElementById('dentalNotes').value, next_due: document.getElementById('dentalNextDue').value };
+            await fetch('/api/dental_history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('dentalModal');
+            showToast('🦷 Додано');
+            loadVetData();
+        }
+
+        function showSymptomModal() { document.getElementById('symptomModal').style.display = 'flex'; }
         async function saveSymptom() {
-            await fetch('/api/add_symptom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                temperature: parseFloat(document.getElementById('tempInput').value) || null,
-                appetite: parseInt(document.getElementById('appetiteInput').value),
-                mood: document.getElementById('moodInput').value,
-                note: document.getElementById('symptomNote').value
-            }) });
+            await fetch('/api/add_symptom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ temperature: parseFloat(document.getElementById('tempInput').value) || null, appetite: parseInt(document.getElementById('appetiteInput').value), mood: document.getElementById('moodInput').value, note: document.getElementById('symptomNote').value }) });
             closeModal('symptomModal');
             showToast('🌡️ Збережено');
             loadHealthData();
-            document.getElementById('tempInput').value = '';
-            document.getElementById('symptomNote').value = '';
         }
 
+        function showAllergyModal() { document.getElementById('allergyModal').style.display = 'flex'; }
         async function saveAllergy() {
             const product = document.getElementById('allergyProduct').value;
             if (!product) return;
-            await fetch('/api/add_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                product: product,
-                reaction: document.getElementById('allergyReaction').value,
-                severity: parseInt(document.getElementById('allergySeverity').value)
-            }) });
+            await fetch('/api/add_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, reaction: document.getElementById('allergyReaction').value, severity: parseInt(document.getElementById('allergySeverity').value) }) });
             closeModal('allergyModal');
             showToast('⚠️ Додано');
             loadHealthData();
-            document.getElementById('allergyProduct').value = '';
-            document.getElementById('allergyReaction').value = '';
         }
 
         async function deleteAllergy(id) {
@@ -1432,349 +1338,11 @@
             }
         }
 
-        async function saveReminder() {
-            const title = document.getElementById('reminderTitle').value;
-            const interval = document.getElementById('reminderInterval').value;
-            if (!title || !interval) return;
-            await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                title: title,
-                description: document.getElementById('reminderDesc').value,
-                interval_days: parseInt(interval)
-            }) });
-            closeModal('reminderModal');
-            showToast('💊 Додано');
-            loadHealthData();
-            document.getElementById('reminderTitle').value = '';
-            document.getElementById('reminderInterval').value = '';
-            document.getElementById('reminderDesc').value = '';
-        }
-
-        async function completeReminder(id) {
-            await fetch('/api/complete_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-            showToast('✅ Виконано');
-            loadHealthData();
-        }
-
-        async function sendReport() {
-            const res = await fetch('/api/send_report');
-            const d = await res.json();
-            showToast(d.message);
-        }
-
-        function showWeightModal() { document.getElementById('weightModal').style.display = 'flex'; }
-        function showTrainingModal() { document.getElementById('trainingModal').style.display = 'flex'; }
-        function showMentalModal() { document.getElementById('mentalModal').style.display = 'flex'; }
-        function showSymptomModal() { document.getElementById('symptomModal').style.display = 'flex'; }
-        function showAllergyModal() { document.getElementById('allergyModal').style.display = 'flex'; }
-        function showReminderModal() { document.getElementById('reminderModal').style.display = 'flex'; }
-
-        async function checkActiveStates() {
-            try {
-                const walk = await fetch('/api/walk_status').then(r => r.json());
-                if (walk.active) { document.getElementById('walkIcon').innerHTML = '⏹️'; document.getElementById('walkText').innerHTML = 'Зупинити'; }
-                const sleep = await fetch('/api/sleep_status').then(r => r.json());
-                if (sleep.active) { document.getElementById('sleepIcon').innerHTML = '⏹️'; document.getElementById('sleepText').innerHTML = 'Зупинити'; }
-            } catch(e) { console.error('checkActiveStates error:', e); }
-        }
-
-        // ========== НОВІ ФУНКЦІЇ (Ветпаспорт, Тренди, Сім'я) ==========
-
-        async function loadVetData() {
-            await loadVaccinations();
-            await loadParasiteTreatments();
-            await loadDentalHistory();
-        }
-
-        async function loadVaccinations() {
-            try {
-                const res = await fetch('/api/vaccinations');
-                const data = await res.json();
-                document.getElementById('vaccinationsList').innerHTML = Array.isArray(data) && data.length ? data.map(v => `
-                    <div class="event-card">
-                        <div class="event-icon-large">💉</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${v.vaccine_name}</div>
-                            <div class="event-subtitle">Дата: ${v.vaccine_date} | Лікар: ${v.vet_name || '—'}</div>
-                            ${v.next_due ? `<div class="event-duration">⏰ Наступне: ${v.next_due}</div>` : ''}
-                        </div>
-                    </div>
-                `).join('') : '<div class="empty-state">📭 Немає записів про щеплення</div>';
-            } catch(e) { console.error(e); }
-        }
-
-        async function loadParasiteTreatments() {
-            try {
-                const res = await fetch('/api/parasite_treatments');
-                const data = await res.json();
-                document.getElementById('parasiteList').innerHTML = Array.isArray(data) && data.length ? data.map(p => `
-                    <div class="event-card">
-                        <div class="event-icon-large">🪱</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${p.treatment_name}</div>
-                            <div class="event-subtitle">Дата: ${p.treatment_date} | Препарат: ${p.medication_name || '—'}</div>
-                            ${p.next_due ? `<div class="event-duration">⏰ Наступна: ${p.next_due}</div>` : ''}
-                        </div>
-                    </div>
-                `).join('') : '<div class="empty-state">📭 Немає записів про обробку</div>';
-            } catch(e) { console.error(e); }
-        }
-
-        async function loadDentalHistory() {
-            try {
-                const res = await fetch('/api/dental_history');
-                const data = await res.json();
-                document.getElementById('dentalList').innerHTML = Array.isArray(data) && data.length ? data.map(d => `
-                    <div class="event-card">
-                        <div class="event-icon-large">🦷</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${d.procedure_type}</div>
-                            <div class="event-subtitle">Дата: ${d.procedure_date} | Лікар: ${d.vet_name || '—'}</div>
-                            ${d.notes ? `<div class="event-duration">📝 ${d.notes}</div>` : ''}
-                        </div>
-                    </div>
-                `).join('') : '<div class="empty-state">📭 Немає записів</div>';
-            } catch(e) { console.error(e); }
-        }
-
-        function showVaccinationModal() {
-            const modalHtml = `
-                <div id="vetModal" class="modal" style="display:flex">
-                    <div class="modal-content">
-                        <h3>💉 Додати щеплення</h3>
-                        <input type="text" id="vaccineName" placeholder="Назва щеплення">
-                        <input type="date" id="vaccineDate">
-                        <input type="date" id="vaccineNextDue" placeholder="Наступне (опціонально)">
-                        <input type="text" id="vaccineSeries" placeholder="Серія">
-                        <input type="text" id="vetName" placeholder="Лікар">
-                        <input type="text" id="clinicName" placeholder="Клініка">
-                        <textarea id="vaccineNotes" rows="2" placeholder="Нотатки"></textarea>
-                        <button class="btn" onclick="saveVaccination()">💾 Зберегти</button>
-                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('vetModal')">Скасувати</button>
-                    </div>
-                </div>`;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-
-        async function saveVaccination() {
-            const data = {
-                vaccine_name: document.getElementById('vaccineName').value,
-                vaccine_date: document.getElementById('vaccineDate').value,
-                next_due: document.getElementById('vaccineNextDue').value,
-                series: document.getElementById('vaccineSeries').value,
-                vet_name: document.getElementById('vetName').value,
-                clinic_name: document.getElementById('clinicName').value,
-                notes: document.getElementById('vaccineNotes').value
-            };
-            await fetch('/api/vaccinations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            closeModal('vetModal');
-            showToast('💉 Щеплення додано');
-            loadVaccinations();
-        }
-
-        function showParasiteModal() {
-            const modalHtml = `
-                <div id="parasiteModalWindow" class="modal" style="display:flex">
-                    <div class="modal-content">
-                        <h3>🪱 Додати обробку</h3>
-                        <input type="text" id="treatmentName" placeholder="Назва обробки">
-                        <input type="date" id="treatmentDate">
-                        <input type="date" id="treatmentNextDue" placeholder="Наступна (опціонально)">
-                        <input type="text" id="parasiteType" placeholder="Тип паразитів">
-                        <input type="text" id="medicationName" placeholder="Препарат">
-                        <input type="text" id="dosage" placeholder="Дозування">
-                        <textarea id="treatmentNotes" rows="2" placeholder="Нотатки"></textarea>
-                        <button class="btn" onclick="saveParasiteTreatment()">💾 Зберегти</button>
-                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('parasiteModalWindow')">Скасувати</button>
-                    </div>
-                </div>`;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-
-        async function saveParasiteTreatment() {
-            const data = {
-                name: document.getElementById('treatmentName').value,
-                treatment_date: document.getElementById('treatmentDate').value,
-                next_due: document.getElementById('treatmentNextDue').value,
-                parasite_type: document.getElementById('parasiteType').value,
-                medication: document.getElementById('medicationName').value,
-                dosage: document.getElementById('dosage').value,
-                notes: document.getElementById('treatmentNotes').value
-            };
-            await fetch('/api/parasite_treatments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            closeModal('parasiteModalWindow');
-            showToast('🪱 Обробку додано');
-            loadParasiteTreatments();
-        }
-
-        function showDentalModal() {
-            const modalHtml = `
-                <div id="dentalModalWindow" class="modal" style="display:flex">
-                    <div class="modal-content">
-                        <h3>🦷 Додати процедуру</h3>
-                        <input type="date" id="dentalDate">
-                        <input type="text" id="dentalType" placeholder="Тип процедури">
-                        <input type="text" id="dentalVet" placeholder="Лікар">
-                        <textarea id="dentalNotes" rows="2" placeholder="Нотатки"></textarea>
-                        <input type="date" id="dentalNextDue" placeholder="Наступна (опціонально)">
-                        <button class="btn" onclick="saveDentalProcedure()">💾 Зберегти</button>
-                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('dentalModalWindow')">Скасувати</button>
-                    </div>
-                </div>`;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-
-        async function saveDentalProcedure() {
-            const data = {
-                procedure_date: document.getElementById('dentalDate').value,
-                procedure_type: document.getElementById('dentalType').value,
-                vet_name: document.getElementById('dentalVet').value,
-                notes: document.getElementById('dentalNotes').value,
-                next_due: document.getElementById('dentalNextDue').value
-            };
-            await fetch('/api/dental_history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            closeModal('dentalModalWindow');
-            showToast('🦷 Процедуру додано');
-            loadDentalHistory();
-        }
-
-        async function loadWeightTrend() {
-            try {
-                const res = await fetch('/api/weight_trend');
-                const data = await res.json();
-                if (data.error || !data.current_weight) {
-                    document.getElementById('weightTrendInfo').innerHTML = '<div class="empty-state">📭 Недостатньо даних для прогнозу</div>';
-                    return;
-                }
-                const trendClass = data.trend === 'up' ? 'trend-up' : (data.trend === 'down' ? 'trend-down' : 'trend-stable');
-                const trendSymbol = data.trend === 'up' ? '📈' : (data.trend === 'down' ? '📉' : '➡️');
-                document.getElementById('weightTrendInfo').innerHTML = `
-                    <p><strong>Поточна вага:</strong> ${data.current_weight} кг</p>
-                    <p><strong>Тренд:</strong> <span class="${trendClass}">${trendSymbol} ${data.change_per_week} кг/тиждень</span></p>
-                    <p><strong>Прогноз на наступний тиждень:</strong> ${data.prediction_next_week} кг</p>
-                    <p><strong>Точність прогнозу:</strong> ${data.confidence}%</p>
-                `;
-            } catch(e) { console.error(e); }
-        }
-
-        async function loadActivityTrend() {
-            try {
-                const res = await fetch('/api/activity_trend');
-                const data = await res.json();
-                if (data.error || !data.avg_walk_minutes) {
-                    document.getElementById('activityTrendInfo').innerHTML = '<div class="empty-state">📭 Недостатньо даних для аналізу</div>';
-                    return;
-                }
-                const trendClass = data.walk_trend === 'up' ? 'trend-up' : (data.walk_trend === 'down' ? 'trend-down' : 'trend-stable');
-                const trendSymbol = data.walk_trend === 'up' ? '📈' : (data.walk_trend === 'down' ? '📉' : '➡️');
-                document.getElementById('activityTrendInfo').innerHTML = `
-                    <p><strong>Середня прогулянка:</strong> ${data.avg_walk_minutes} хв/день</p>
-                    <p><strong>Середній сон:</strong> ${data.avg_sleep_hours} год/день</p>
-                    <p><strong>Тренд активності:</strong> <span class="${trendClass}">${trendSymbol} ${data.walk_change_percent}% за тиждень</span></p>
-                    <p><strong>Рекомендація:</strong> ${data.recommendation}</p>
-                `;
-            } catch(e) { console.error(e); }
-        }
-
-        async function loadSmartReminders() {
-            try {
-                const res = await fetch('/api/smart_reminders');
-                const data = await res.json();
-                const reminders = data.reminders || [];
-                const triggered = data.triggered || [];
-                const triggeredIds = new Set(triggered.map(t => t.id));
-                document.getElementById('smartRemindersList').innerHTML = reminders.length ? reminders.map(r => `
-                    <div class="event-card ${triggeredIds.has(r.id) ? 'reminder-triggered' : ''}">
-                        <div class="event-icon-large">🔔</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${r.title}</div>
-                            <div class="event-subtitle">${r.description}</div>
-                            ${triggeredIds.has(r.id) ? '<div class="event-duration">⚠️ ПОТРІБНА УВАГА!</div>' : ''}
-                        </div>
-                    </div>
-                `).join('') : '<div class="empty-state">📭 Немає розумних нагадувань</div>';
-            } catch(e) { console.error(e); }
-        }
-
-        async function checkSmartReminders() {
-            showToast('🔍 Перевірка нагадувань...');
-            await fetch('/api/check_smart_reminders', { method: 'POST' });
-            showToast('✅ Нагадування перевірено');
-            loadSmartReminders();
-        }
-
-        async function loadFamilyMembers() {
-            try {
-                const res = await fetch('/api/family_members');
-                const data = await res.json();
-                document.getElementById('familyMembersList').innerHTML = Array.isArray(data) && data.length ? data.map(m => `
-                    <div class="event-card">
-                        <div class="event-icon-large">${m.role === 'admin' ? '👑' : '👤'}</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${m.name}</div>
-                            <div class="event-subtitle">Роль: ${m.role} | Сповіщення: ${m.notify_enabled ? '✅ увімкнено' : '❌ вимкнено'}</div>
-                            ${m.chat_id ? `<div class="event-duration">🆔 Chat ID: ${m.chat_id}</div>` : ''}
-                        </div>
-                        <button class="delete-event-btn" onclick="deleteFamilyMember(${m.id})">🗑</button>
-                    </div>
-                `).join('') : '<div class="empty-state">👨‍👩‍👧‍👦 Немає доданих членів сім\'ї</div>';
-            } catch(e) { console.error(e); }
-        }
-
-        function showFamilyModal() {
-            const modalHtml = `
-                <div id="familyModal" class="modal" style="display:flex">
-                    <div class="modal-content">
-                        <h3>👨‍👩‍👧‍👦 Додати члена сім'ї</h3>
-                        <input type="text" id="familyName" placeholder="Ім'я">
-                        <select id="familyRole">
-                            <option value="member">Член сім'ї</option>
-                            <option value="admin">Адміністратор</option>
-                        </select>
-                        <input type="text" id="familyChatId" placeholder="Telegram Chat ID (опціонально)">
-                        <label><input type="checkbox" id="familyNotify" checked> Отримувати сповіщення</label>
-                        <button class="btn" onclick="saveFamilyMember()">💾 Зберегти</button>
-                        <button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('familyModal')">Скасувати</button>
-                    </div>
-                </div>`;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-        }
-
-        async function saveFamilyMember() {
-            const data = {
-                name: document.getElementById('familyName').value,
-                role: document.getElementById('familyRole').value,
-                chat_id: document.getElementById('familyChatId').value || null,
-                notify: document.getElementById('familyNotify').checked
-            };
-            await fetch('/api/family_members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-            closeModal('familyModal');
-            showToast('👨‍👩‍👧‍👦 Члена сім\'ї додано');
-            loadFamilyMembers();
-        }
-
-        async function deleteFamilyMember(id) {
-            if (confirm('Видалити члена сім\'ї?')) {
-                await fetch('/api/family_members', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-                showToast('🗑 Видалено');
-                loadFamilyMembers();
-            }
-        }
-
-        async function sendFamilyNotification() {
-            const message = document.getElementById('notificationMessage').value;
-            if (!message) { showToast('❌ Введіть повідомлення'); return; }
-            const res = await fetch('/api/notify_family', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
-            const data = await res.json();
-            showToast(`📨 Надіслано ${data.notified?.length || 0} отримувачам`);
-            document.getElementById('notificationMessage').value = '';
-        }
-
         // Ініціалізація
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             initTabs();
             loadStats();
             loadTimeline();
-            loadWeekly();
             loadEventsFeed();
             loadWeightData();
             loadTrainingData();
@@ -1782,10 +1350,16 @@
             loadHealthData();
             loadInsight();
             loadSettings();
-            checkActiveStates();
+            loadBehaviorTypes();
+            loadWeekly();
+            loadMeasurements();
+            loadVetData();
+            loadWeightTrend();
+            loadActivityTrend();
+            loadSmartReminders();
+            loadFamilyMembers();
+            setInterval(() => { loadStats(); loadInsight(); }, 30000);
         });
-
-        setInterval(() => { loadStats(); loadInsight(); }, 30000);
     </script>
 </body>
 </html>
