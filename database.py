@@ -41,7 +41,7 @@ def get_db():
 
 
 def migrate_db():
-    """Міграція бази даних - додавання нових колонок"""
+    """Міграція бази даних - додавання нових колонок та таблиць"""
     with get_db() as conn:
         # Перевіряємо таблицю medical_reminders
         cursor = conn.execute("PRAGMA table_info(medical_reminders)")
@@ -70,6 +70,51 @@ def migrate_db():
         if 'role' not in columns:
             conn.execute("ALTER TABLE allowed_users ADD COLUMN role TEXT DEFAULT 'user'")
             logger.info("✅ Додано колонку role до allowed_users")
+
+        # Створюємо нові таблиці для функціоналу цуценяти
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS damages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                item_name TEXT NOT NULL,
+                cost REAL NOT NULL,
+                category TEXT,
+                note TEXT,
+                user_id INTEGER
+            )
+        ''')
+        logger.info("✅ Створено таблицю damages")
+
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS quarantine (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                last_vaccination_date INTEGER NOT NULL,
+                quarantine_end_date INTEGER NOT NULL,
+                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+            )
+        ''')
+        logger.info("✅ Створено таблицю quarantine")
+
+        # Додаємо quarantine запис за замовчуванням якщо порожньо
+        count = conn.execute("SELECT COUNT(*) FROM quarantine").fetchone()[0]
+        if count == 0:
+            # За замовчуванням карантин вже завершено
+            default_date = int((datetime.now() - timedelta(days=1)).timestamp())
+            conn.execute("""
+                INSERT INTO quarantine (last_vaccination_date, quarantine_end_date)
+                VALUES (?, ?)
+            """, (default_date, default_date))
+
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS zoomies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                duration INTEGER,
+                intensity INTEGER DEFAULT 3,
+                note TEXT
+            )
+        ''')
+        logger.info("✅ Створено таблицю zoomies")
 
         logger.info("✅ Міграцію БД завершено")
 
@@ -347,7 +392,9 @@ def init_db():
             "food_density_calories": "3800",
             "potty_reminder_minutes": "25",
             "planned_meals": "4",
-            "planned_sleep_hours": "20"
+            "planned_sleep_hours": "20",
+            "last_vaccination_date": "",
+            "quarantine_days": "14"
         }
         for key, value in defaults.items():
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, value))
@@ -370,9 +417,6 @@ def init_db():
         for name, icon, severity in behavior_defaults:
             conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)',
                          (name, icon, severity))
-
-        # ВАЖЛИВО: Виконуємо міграцію після створення таблиць
-        # (але не в цьому з'єднанні, бо воно вже в транзакції)
 
     # Виконуємо міграцію окремим з'єднанням
     migrate_db()
@@ -412,28 +456,21 @@ def get_pet_age_months():
 
 def get_safe_walk_duration_minutes():
     months = get_pet_age_months()
-    # Безпечна тривалість прогулянки: 5 хв на місяць життя, але не більше 120 хв
     return min(months * 5, 120)
 
 
 def calculate_daily_food_amount(weight_kg, activity_factor=None):
-    """
-    Розрахунок добової норми корму за формулою RER
-    RER = 70 * (weight_kg)^0.75
-    """
     if not weight_kg or weight_kg <= 0:
         weight_kg = 5
 
-    # Визначення фактору активності на основі віку
     months = get_pet_age_months()
     if months < 4:
-        activity_factor = 2.0  # цуценя до 4 місяців
+        activity_factor = 2.0
     elif months < 12:
-        activity_factor = 1.8  # цуценя 4-12 місяців
+        activity_factor = 1.8
     else:
-        activity_factor = 1.6  # активна доросла собака
+        activity_factor = 1.6
 
-    # RER формула
     rer = 70 * (weight_kg ** 0.75)
     daily_calories = rer * activity_factor
 
@@ -591,7 +628,9 @@ def get_settings():
             'telegram_bot_token': '',
             'telegram_chat_id': '',
             'group_chat_id': '',
-            'potty_reminder_minutes': '25'
+            'potty_reminder_minutes': '25',
+            'last_vaccination_date': '',
+            'quarantine_days': '14'
         }
 
         for key, default in defaults.items():
@@ -852,7 +891,6 @@ def add_medical_reminder(title, description, interval_days, reminder_time='09:00
         now = datetime.now()
         reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
 
-        # Створюємо datetime для наступного нагадування
         next_due_date = datetime(now.year, now.month, now.day, reminder_hour, reminder_minute, 0)
 
         if next_due_date <= now:
@@ -885,7 +923,6 @@ def get_medical_reminders():
 
 
 def get_due_medical_reminders():
-    """Отримати нагадування, які мають бути виконані (сьогодні або раніше)"""
     now = int(time.time())
     with get_db() as conn:
         rows = conn.execute("""
@@ -908,7 +945,6 @@ def complete_reminder(reminder_id):
                            (reminder_id,)).fetchone()
         if row:
             if row['interval_days'] == 0:
-                # Одноразове нагадування - видаляємо
                 conn.execute("DELETE FROM medical_reminders WHERE id = ?", (reminder_id,))
                 return True
 
@@ -932,7 +968,6 @@ def complete_reminder(reminder_id):
 
 
 def get_notification_recipients():
-    """Отримати список chat_id для сповіщень"""
     members = get_family_members()
     group_chats = get_group_chats()
     recipients = []
@@ -944,12 +979,11 @@ def get_notification_recipients():
     for g in group_chats:
         recipients.append(g['chat_id'])
 
-    # Додаємо адміністратора
     admin_chat = get_setting('telegram_chat_id')
     if admin_chat:
         recipients.append(int(admin_chat))
 
-    return list(set(recipients))  # унікальні
+    return list(set(recipients))
 
 
 def delete_reminder(reminder_id):
@@ -1281,7 +1315,6 @@ def delete_family_member(member_id):
 
 
 def notify_family(message):
-    """Надсилання повідомлення всім членам сім'ї через Telegram"""
     members = get_family_members()
     group_chats = get_group_chats()
     notified = []
@@ -1310,3 +1343,189 @@ def notify_family(message):
             pass
 
     return notified
+
+
+# ========== КАЛЬКУЛЯТОР ЗБИТКІВ ==========
+
+def add_damage(item_name, cost, category=None, note=None):
+    """Додати запис про знищену річ"""
+    with get_db() as conn:
+        now = int(time.time())
+        conn.execute("""
+            INSERT INTO damages (timestamp, item_name, cost, category, note)
+            VALUES (?, ?, ?, ?, ?)
+        """, (now, item_name, cost, category, note))
+        return True
+
+
+def get_damages(limit=100):
+    """Отримати список збитків"""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT id, item_name, cost, category, note,
+                   datetime(timestamp, 'unixepoch', 'localtime') as date,
+                   timestamp
+            FROM damages ORDER BY timestamp DESC LIMIT ?
+        """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_damages_stats(days=30):
+    """Отримати статистику збитків за період"""
+    start_time = int(time.time()) - days * 86400
+    with get_db() as conn:
+        total = conn.execute("""
+            SELECT COALESCE(SUM(cost), 0) as total FROM damages 
+            WHERE timestamp >= ?
+        """, (start_time,)).fetchone()['total']
+
+        by_category = conn.execute("""
+            SELECT category, COUNT(*) as count, COALESCE(SUM(cost), 0) as total
+            FROM damages WHERE timestamp >= ? AND category IS NOT NULL
+            GROUP BY category ORDER BY total DESC
+        """, (start_time,)).fetchall()
+
+        last = conn.execute("""
+            SELECT item_name, cost, datetime(timestamp, 'unixepoch', 'localtime') as date
+            FROM damages ORDER BY timestamp DESC LIMIT 1
+        """).fetchone()
+
+        return {
+            'total': total,
+            'count': len(get_damages(1000)),
+            'by_category': [dict(c) for c in by_category],
+            'last': dict(last) if last else None
+        }
+
+
+def delete_damage(damage_id):
+    """Видалити запис про збиток"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM damages WHERE id = ?", (damage_id,))
+        return True
+
+
+# ========== КОНТРОЛЬ ВАКЦИНАЦІЙНОГО КАРАНТИНУ ==========
+
+def set_last_vaccination(vaccination_date):
+    """Встановити дату останнього щеплення"""
+    with get_db() as conn:
+        date_ts = int(datetime.strptime(vaccination_date, '%Y-%m-%d').timestamp())
+        quarantine_days = int(get_setting('quarantine_days', 14))
+        end_ts = date_ts + quarantine_days * 86400
+
+        # Оновлюємо налаштування
+        set_setting('last_vaccination_date', vaccination_date)
+
+        # Оновлюємо таблицю quarantine
+        conn.execute("DELETE FROM quarantine")
+        conn.execute("""
+            INSERT INTO quarantine (last_vaccination_date, quarantine_end_date)
+            VALUES (?, ?)
+        """, (date_ts, end_ts))
+
+        return True
+
+
+def get_quarantine_status():
+    """Отримати статус карантину"""
+    with get_db() as conn:
+        row = conn.execute("""
+            SELECT last_vaccination_date, quarantine_end_date
+            FROM quarantine ORDER BY id DESC LIMIT 1
+        """).fetchone()
+
+        if not row:
+            return {
+                'in_quarantine': False,
+                'days_left': 0,
+                'message': "ℹ️ Щеплення не зареєстровані. Айла може гуляти!"
+            }
+
+        now = int(time.time())
+        end_date = row['quarantine_end_date']
+        last_vaccine_date = row['last_vaccination_date']
+
+        if now >= end_date:
+            days_left = 0
+            in_quarantine = False
+            message = f"✅ Карантин завершено! Айла може гуляти на вулиці."
+        else:
+            days_left = (end_date - now) // 86400 + 1
+            in_quarantine = True
+            message = f"🚨 <b>Увага! ВАКЦИНАЦІЙНИЙ КАРАНТИН!</b>\n\nДо кінця карантину ще {days_left} днів.\nГуляти тільки на руках або вдома! Не контактувати з іншими собаками та землею."
+
+        # Перевіряємо чи минуло 14 днів після останнього щеплення
+        if last_vaccine_date:
+            last_date = datetime.fromtimestamp(last_vaccine_date)
+            days_since_vaccine = (datetime.now() - last_date).days
+            if days_since_vaccine < 14:
+                message += f"\n\n💉 Останнє щеплення: {last_date.strftime('%d.%m.%Y')}\n⏳ Пройшло: {days_since_vaccine} днів з 14"
+
+        return {
+            'in_quarantine': in_quarantine,
+            'days_left': days_left,
+            'message': message,
+            'end_date': datetime.fromtimestamp(end_date).strftime('%d.%m.%Y') if end_date else None
+        }
+
+
+# ========== ТРЕКЕР ZOOMIES (ФРЕНЕТИЧНА АКТИВНІСТЬ) ==========
+
+def add_zoomie(duration, intensity=3, note=None):
+    """Додати запис про зуміс (раптовий напад енергії)"""
+    with get_db() as conn:
+        now = int(time.time())
+        conn.execute("""
+            INSERT INTO zoomies (timestamp, duration, intensity, note)
+            VALUES (?, ?, ?, ?)
+        """, (now, duration, intensity, note))
+        return True
+
+
+def get_zoomies(limit=50):
+    """Отримати список зумісів"""
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT id, duration, intensity, note,
+                   datetime(timestamp, 'unixepoch', 'localtime') as date,
+                   time(timestamp, 'unixepoch', 'localtime') as time_of_day,
+                   timestamp
+            FROM zoomies ORDER BY timestamp DESC LIMIT ?
+        """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_zoomies_stats(days=30):
+    """Отримати статистику зумісів"""
+    start_time = int(time.time()) - days * 86400
+    with get_db() as conn:
+        count = conn.execute("""
+            SELECT COUNT(*) as count FROM zoomies WHERE timestamp >= ?
+        """, (start_time,)).fetchone()['count']
+
+        avg_duration = conn.execute("""
+            SELECT COALESCE(AVG(duration), 0) as avg_duration FROM zoomies WHERE timestamp >= ?
+        """, (start_time,)).fetchone()['avg_duration']
+
+        # Частота по годинах доби
+        hour_stats = conn.execute("""
+            SELECT strftime('%H', datetime(timestamp, 'unixepoch', 'localtime')) as hour,
+                   COUNT(*) as count
+            FROM zoomies WHERE timestamp >= ?
+            GROUP BY hour ORDER BY count DESC
+        """, (start_time,)).fetchall()
+
+        return {
+            'count': count,
+            'avg_duration': round(avg_duration, 1),
+            'hour_stats': [dict(h) for h in hour_stats],
+            'peak_hour': hour_stats[0]['hour'] if hour_stats else None
+        }
+
+
+def delete_zoomie(zoomie_id):
+    """Видалити запис про зуміс"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM zoomies WHERE id = ?", (zoomie_id,))
+        return True
