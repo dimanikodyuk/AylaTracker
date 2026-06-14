@@ -777,14 +777,26 @@ def add_medical_reminder(title, description, interval_days, reminder_time='09:00
         cursor = conn.execute("PRAGMA table_info(medical_reminders)")
         columns = [col[1] for col in cursor.fetchall()]
 
-        now = int(time.time())
-        next_due = now + interval_days * 86400
+        # Розраховуємо наступну дату з урахуванням reminder_time
+        now = datetime.now()
+        reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
+
+        # Створюємо дату наступного нагадування
+        next_due_date = now.replace(hour=reminder_hour, minute=reminder_minute, second=0, microsecond=0)
+
+        # Якщо час вже минув сьогодні, переносимо на завтра
+        if next_due_date <= now:
+            next_due_date += timedelta(days=1)
+
+        # Додаємо інтервал днів
+        next_due_date += timedelta(days=interval_days)
+        next_due = int(next_due_date.timestamp())
 
         if 'reminder_time' in columns and 'last_triggered' in columns:
             conn.execute("""
                 INSERT INTO medical_reminders (title, description, interval_days, reminder_time, last_triggered, next_due, enabled)
                 VALUES (?, ?, ?, ?, ?, ?, 1)
-            """, (title, description, interval_days, reminder_time, now, next_due))
+            """, (title, description, interval_days, reminder_time, int(now.timestamp()), next_due))
         elif 'reminder_time' in columns:
             conn.execute("""
                 INSERT INTO medical_reminders (title, description, interval_days, reminder_time, next_due, enabled)
@@ -812,14 +824,14 @@ def get_medical_reminders():
 
 
 def get_due_medical_reminders():
+    """Отримати нагадування, які мають бути виконані сьогодні або раніше"""
     now = int(time.time())
-    today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
         rows = conn.execute("""
             SELECT * FROM medical_reminders 
-            WHERE enabled = 1 AND next_due >= ? AND next_due <= ?
+            WHERE enabled = 1 AND next_due <= ?
             ORDER BY next_due ASC
-        """, (today_start, now + 86400)).fetchall()
+        """, (now,)).fetchall()
         reminders = []
         for r in rows:
             rem = dict(r)
@@ -830,13 +842,23 @@ def get_due_medical_reminders():
 
 def complete_reminder(reminder_id):
     with get_db() as conn:
-        row = conn.execute("SELECT interval_days, reminder_time FROM medical_reminders WHERE id = ?", (reminder_id,)).fetchone()
+        row = conn.execute("SELECT interval_days, reminder_time FROM medical_reminders WHERE id = ?",
+                           (reminder_id,)).fetchone()
         if row:
-            now = int(time.time())
-            next_due = now + row['interval_days'] * 86400
+            now = datetime.now()
+            reminder_hour, reminder_minute = map(int, row['reminder_time'].split(':')) if row['reminder_time'] else (9,
+                                                                                                                     0)
+
+            # Розраховуємо наступну дату
+            next_due_date = now.replace(hour=reminder_hour, minute=reminder_minute, second=0, microsecond=0)
+            if next_due_date <= now:
+                next_due_date += timedelta(days=1)
+            next_due_date += timedelta(days=row['interval_days'])
+            next_due = int(next_due_date.timestamp())
+
             conn.execute("""
                 UPDATE medical_reminders SET last_triggered = ?, next_due = ? WHERE id = ?
-            """, (now, next_due, reminder_id))
+            """, (int(now.timestamp()), next_due, reminder_id))
             return True
     return False
 
