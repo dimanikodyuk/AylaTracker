@@ -240,10 +240,6 @@
         .report-stat { flex: 1; background: #f8f9fa; border-radius: 16px; padding: 12px; text-align: center; }
         .report-stat-value { font-size: 24px; font-weight: 700; color: #333; }
         .report-stat-label { font-size: 11px; color: #888; margin-top: 4px; }
-        .damage-card { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; }
-        .zoomie-card { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; }
-        .quarantine-card { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: white; }
-        .quarantine-warning { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
         @media (min-width: 768px) {
             body { max-width: 900px; margin: 0 auto; padding: 20px; }
             .stat-value { font-size: 24px; }
@@ -309,8 +305,6 @@
         <button class="tab" data-tab="weight">⚖️ Вага</button>
         <button class="tab" data-tab="measurements">📏 Пропорції</button>
         <button class="tab" data-tab="training">🏋️ Тренування</button>
-        <button class="tab" data-tab="damage">💸 Збитки</button>
-        <button class="tab" data-tab="zoomies">🐕 Зуміс</button>
         <button class="tab" data-tab="health">💊 Здоров'я</button>
         <button class="tab" data-tab="vet">🏥 Ветпаспорт</button>
         <button class="tab" data-tab="family">👨‍👩‍👧‍👦 Сім'я</button>
@@ -341,46 +335,7 @@
         <div class="card"><div class="card-title">📋 Історія тренувань <button class="btn-small" onclick="showTrainingModal()">➕ Додати</button></div><div class="events-feed" id="trainingList"></div></div>
     </div>
 
-    <!-- Вкладка Збитки -->
-    <div id="tab-damage" class="tab-content">
-        <div class="card damage-card">
-            <div class="card-title">💸 Калькулятор збитків Айли</div>
-            <div id="damageStatsWidget" style="font-size: 28px; font-weight: bold; text-align: center; padding: 10px;">📊 Завантаження...</div>
-            <div id="damageAdvice" style="font-size: 12px; text-align: center; margin-top: 10px; opacity: 0.9;"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">➕ Додати збиток <button class="btn-small" onclick="showDamageModal()">➕ Додати</button></div>
-            <div class="events-feed" id="damagesList"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">📊 Статистика по категоріях</div>
-            <canvas id="damageChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Вкладка Зуміс -->
-    <div id="tab-zoomies" class="tab-content">
-        <div class="card zoomie-card">
-            <div class="card-title">🐕 Трекер Зумісів (FRAP)</div>
-            <div id="zoomieStatsWidget" style="font-size: 24px; font-weight: bold; text-align: center; padding: 10px;">📊 Завантаження...</div>
-            <div id="zoomieAdvice" style="font-size: 12px; text-align: center; margin-top: 10px; opacity: 0.9;"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">➕ Додати зуміс <button class="btn-small" onclick="showZoomieModal()">➕ Додати</button></div>
-            <div class="events-feed" id="zoomiesList"></div>
-        </div>
-        <div class="card">
-            <div class="card-title">📊 Частота по годинах</div>
-            <canvas id="zoomieHourChart"></canvas>
-        </div>
-    </div>
-
     <div id="tab-health" class="tab-content">
-        <div class="card" id="quarantineCard">
-            <div class="card-title">🚨 Вакцинаційний карантин</div>
-            <div id="quarantineStatus"></div>
-            <button class="btn-small" onclick="showVaccinationDateModal()" style="margin-top:10px">📅 Встановити дату щеплення</button>
-        </div>
         <div class="card"><div class="card-title">💊 Нагадування <button class="btn-small" onclick="showReminderModal()">➕ Додати</button></div><div class="events-feed" id="remindersList"></div></div>
         <div class="card"><div class="card-title">🌡️ Симптоми <button class="btn-small" onclick="showSymptomModal()">➕ Додати</button></div><div class="events-feed" id="symptomsList"></div></div>
         <div class="card"><div class="card-title">⚠️ Алергії <button class="btn-small" onclick="showAllergyModal()">➕ Додати</button></div><div class="events-feed" id="allergiesList"></div></div>
@@ -453,9 +408,6 @@
     <div id="editMeasurementModal" class="modal"><div class="modal-content"><h3>✏️ Редагувати заміри</h3><input type="hidden" id="editMeasurementId"><div class="measurement-row"><div class="measurement-input"><label>Шия (см)</label><input type="number" id="editNeckCm" step="0.1"></div><div class="measurement-input"><label>Груди (см)</label><input type="number" id="editChestCm" step="0.1"></div></div><div class="measurement-row"><div class="measurement-input"><label>Талія (см)</label><input type="number" id="editWaistCm" step="0.1"></div><div class="measurement-input"><label>Довжина (см)</label><input type="number" id="editLengthCm" step="0.1"></div></div><div class="measurement-row"><div class="measurement-input"><label>Висота (см)</label><input type="number" id="editHeightCm" step="0.1"></div></div><textarea id="editMeasurementNote" rows="2" placeholder="Нотатки"></textarea><label>📅 Дата</label><input type="datetime-local" id="editMeasurementDatetime" class="datetime-input"><button class="btn" onclick="saveEditedMeasurement()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('editMeasurementModal')">Скасувати</button></div></div>
     <div id="trainingModal" class="modal"><div class="modal-content"><h3>🏋️ Тренування</h3><select id="commandInput"></select><input type="number" id="durationInput" placeholder="Тривалість (хв)" value="10"><select id="successInput"><option value="5">✅ Відмінно (5)</option><option value="3">👍 Задовільно (3)</option><option value="1">❌ Не вдалося (1)</option></select><button class="btn" onclick="saveTraining()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('trainingModal')">Скасувати</button></div></div>
     <div id="addTrainingTypeModal" class="modal"><div class="modal-content"><h3>➕ Нова команда</h3><input type="text" id="newTrainingType" placeholder="Назва команди"><input type="text" id="newTrainingIcon" placeholder="Іконка (emoji)" value="🏋️"><button class="btn" onclick="saveTrainingType()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('addTrainingTypeModal')">Скасувати</button></div></div>
-    <div id="damageModal" class="modal"><div class="modal-content"><h3>💸 Додати збиток</h3><input type="text" id="damageItem" placeholder="Назва (наприклад: шльопанці)"><input type="number" id="damageCost" step="10" placeholder="Вартість (грн)"><select id="damageCategory"><option value="">Без категорії</option><option value="взуття">👟 Взуття</option><option value="електроніка">📱 Електроніка</option><option value="меблі">🪑 Меблі</option><option value="одяг">👕 Одяг</option><option value="побутове">🏠 Побутове</option><option value="інше">📦 Інше</option></select><textarea id="damageNote" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveDamage()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('damageModal')">Скасувати</button></div></div>
-    <div id="zoomieModal" class="modal"><div class="modal-content"><h3>🐕 Додати зуміс</h3><input type="number" id="zoomieDuration" step="1" placeholder="Тривалість (хв)"><select id="zoomieIntensity"><option value="1">💨 Слабкий (1)</option><option value="2">🌪️ Помірний (2)</option><option value="3">🌀 Середній (3)</option><option value="4">⚡ Сильний (4)</option><option value="5">💥 Шалений (5)</option></select><textarea id="zoomieNote" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveZoomie()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('zoomieModal')">Скасувати</button></div></div>
-    <div id="vaccinationDateModal" class="modal"><div class="modal-content"><h3>💉 Встановити дату щеплення</h3><label>📅 Дата останнього щеплення</label><input type="date" id="vaccinationDate"><p style="font-size:12px; color:#888; margin-top:8px;">Після щеплення буде розраховано 14 днів карантину</p><button class="btn" onclick="saveVaccinationDate()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('vaccinationDateModal')">Скасувати</button></div></div>
     <div id="symptomModal" class="modal"><div class="modal-content"><h3>🌡️ Симптоми</h3><input type="number" id="tempInput" step="0.1" placeholder="Температура"><select id="appetiteInput"><option value="5">🍖 Відмінний</option><option value="3">😐 Задовільний</option><option value="1">😖 Поганий</option></select><select id="moodInput"><option>грайлива</option><option>спокійна</option><option>пригнічена</option></select><textarea id="symptomNote" rows="2" placeholder="Опис"></textarea><button class="btn" onclick="saveSymptom()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('symptomModal')">Скасувати</button></div></div>
     <div id="allergyModal" class="modal"><div class="modal-content"><h3>⚠️ Алергія</h3><input type="text" id="allergyProduct" placeholder="Продукт"><input type="text" id="allergyReaction" placeholder="Реакція"><select id="allergySeverity"><option value="5">🔴 Дуже сильна</option><option value="3">🟡 Середня</option><option value="1">🟢 Слабка</option></select><button class="btn" onclick="saveAllergy()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('allergyModal')">Скасувати</button></div></div>
     <div id="reminderModal" class="modal"><div class="modal-content"><h3>💊 Нагадування</h3><input type="text" id="reminderTitle" placeholder="Назва"><textarea id="reminderDesc" rows="2" placeholder="Опис"></textarea><input type="number" id="reminderInterval" placeholder="Інтервал (днів), 0 - одноразове"><small style="font-size: 11px; color: #888; display: block; margin-top: -5px;">0 = одноразове нагадування, 1+ = повторюване кожні N днів</small><input type="time" id="reminderTime" value="09:00"><button class="btn" onclick="saveReminder()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('reminderModal')">Скасувати</button></div></div>
@@ -465,7 +417,7 @@
     <div id="familyModal" class="modal"><div class="modal-content"><h3>👨‍👩‍👧‍👦 Додати члена сім'ї</h3><input type="text" id="familyName" placeholder="Ім'я"><select id="familyRole"><option value="member">Член сім'ї</option><option value="admin">Адміністратор</option></select><input type="text" id="familyChatId" placeholder="Chat ID"><label><input type="checkbox" id="familyNotify" checked> Сповіщення</label><button class="btn" onclick="saveFamilyMember()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('familyModal')">Скасувати</button></div></div>
 
     <script>
-        let timelineChart, weeklyChart, weightChart, trainingChart, measurementsChart, damageChart, zoomieHourChart;
+        let timelineChart, weeklyChart, weightChart, trainingChart, measurementsChart;
         let currentDayOffset = 0;
         let behaviorTypes = [];
 
@@ -519,9 +471,7 @@
             if (tabName === 'weight') loadWeightData();
             if (tabName === 'measurements') loadMeasurements();
             if (tabName === 'training') loadTrainingData();
-            if (tabName === 'damage') loadDamages();
-            if (tabName === 'zoomies') loadZoomies();
-            if (tabName === 'health') { loadHealthData(); loadQuarantine(); }
+            if (tabName === 'health') loadHealthData();
             if (tabName === 'report') { loadTodayReport(); loadWeekReport(); }
             if (tabName === 'feed') loadEventsFeed();
             if (tabName === 'settings') loadSettings();
@@ -888,148 +838,6 @@
             if (name) { await fetch('/api/training_types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon: document.getElementById('newTrainingIcon').value }) }); closeModal('addTrainingTypeModal'); showToast('✅ Додано'); loadTrainingData(); }
         }
 
-        // ========== ЗБИТКИ ==========
-        async function loadDamages() {
-            try {
-                const res = await fetch('/api/damages');
-                const data = await res.json();
-                const total = data.stats?.total || 0;
-                const count = data.stats?.count || 0;
-                let moodIcon = '';
-                let advice = '';
-                if (total > 5000) { moodIcon = '😱'; advice = '🦷 Схоже, зуби Айли дуже гострі! Спробуйте заморожені іграшки або конг з паштетом.'; }
-                else if (total > 2000) { moodIcon = '😬'; advice = '🦴 Джек-рассели люблять гризти. Дайте Айлі безпечні жувальні іграшки!'; }
-                else if (total > 500) { moodIcon = '😐'; advice = '🐾 Хороша новина: Айла ще не з\'їла ваш бюджет. Слідкуйте за її зубами!'; }
-                else { moodIcon = '🙂'; advice = '✨ Чудова робота! Айла майже нічого не псує. Так тримати!'; }
-                document.getElementById('damageStatsWidget').innerHTML = `${moodIcon} ${total.toFixed(0)} грн (${count} речей)`;
-                document.getElementById('damageAdvice').innerHTML = advice;
-                document.getElementById('damagesList').innerHTML = (data.damages || []).slice(0,20).map(d => `
-                    <div class="event-card">
-                        <div class="event-icon-large">💸</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${d.item_name}</div>
-                            <div class="event-subtitle">${d.cost} грн | ${d.date}</div>
-                            ${d.category ? `<div class="event-duration">📁 ${d.category}</div>` : ''}
-                        </div>
-                        <button class="delete-event-btn" onclick="deleteDamage(${d.id})">🗑</button>
-                    </div>
-                `).join('') || '<div class="empty-state">📭 Немає збитків</div>';
-
-                if (damageChart) damageChart.destroy();
-                const categories = data.stats?.by_category || [];
-                if (categories.length > 0) {
-                    damageChart = new Chart(document.getElementById('damageChart'), {
-                        type: 'bar',
-                        data: {
-                            labels: categories.map(c => c.category),
-                            datasets: [{ label: 'Вартість (грн)', data: categories.map(c => c.total), backgroundColor: '#e74c3c' }]
-                        }
-                    });
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        function showDamageModal() { document.getElementById('damageModal').style.display = 'flex'; }
-        async function saveDamage() {
-            const item = document.getElementById('damageItem').value;
-            const cost = document.getElementById('damageCost').value;
-            if (!item || !cost) { showToast('❌ Заповніть назву та вартість'); return; }
-            await fetch('/api/damages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_name: item, cost: parseFloat(cost), category: document.getElementById('damageCategory').value, note: document.getElementById('damageNote').value }) });
-            closeModal('damageModal'); showToast('💸 Збиток додано'); loadDamages();
-            document.getElementById('damageItem').value = ''; document.getElementById('damageCost').value = '';
-            document.getElementById('damageCategory').value = ''; document.getElementById('damageNote').value = '';
-        }
-
-        async function deleteDamage(id) {
-            if (confirm('Видалити запис про збиток?')) {
-                await fetch('/api/damages', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-                showToast('🗑 Видалено'); loadDamages();
-            }
-        }
-
-        // ========== ЗУМІСИ ==========
-        async function loadZoomies() {
-            try {
-                const res = await fetch('/api/zoomies');
-                const data = await res.json();
-                const count = data.stats?.count || 0;
-                const avgDuration = data.stats?.avg_duration || 0;
-                let advice = '';
-                if (count === 0) advice = '🐕 За останній час не було зумісів! Айла була спокійною. 🌟';
-                else if (count > 10) advice = '⚡ Багато зумісів! Спробуйте додати більше інтелектуальних ігор перед вечором.';
-                else advice = '🌀 Нормальна кількість зумісів для цуценяти. Продовжуйте спостерігати!';
-                document.getElementById('zoomieStatsWidget').innerHTML = `🐕 ${count} разів | ⏱ ${avgDuration} хв в середньому`;
-                document.getElementById('zoomieAdvice').innerHTML = advice;
-                document.getElementById('zoomiesList').innerHTML = (data.zoomies || []).slice(0,20).map(z => {
-                    const intensityIcon = {1:'💨',2:'🌪️',3:'🌀',4:'⚡',5:'💥'}[z.intensity] || '🌀';
-                    return `<div class="event-card">
-                        <div class="event-icon-large">${intensityIcon}</div>
-                        <div class="event-details">
-                            <div class="event-title-large">${z.date} о ${z.time_of_day}</div>
-                            <div class="event-subtitle">${z.duration} хв, інтенсивність ${z.intensity}/5</div>
-                            ${z.note ? `<div class="event-duration">📝 ${z.note}</div>` : ''}
-                        </div>
-                        <button class="delete-event-btn" onclick="deleteZoomie(${z.id})">🗑</button>
-                    </div>`;
-                }).join('') || '<div class="empty-state">📭 Немає зумісів</div>';
-
-                if (zoomieHourChart) zoomieHourChart.destroy();
-                const hourStats = data.stats?.hour_stats || [];
-                if (hourStats.length > 0) {
-                    const hours = hourStats.map(h => `${h.hour}:00`);
-                    const counts = hourStats.map(h => h.count);
-                    zoomieHourChart = new Chart(document.getElementById('zoomieHourChart'), {
-                        type: 'bar',
-                        data: { labels: hours, datasets: [{ label: 'Кількість зумісів', data: counts, backgroundColor: '#f39c12' }] }
-                    });
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        function showZoomieModal() { document.getElementById('zoomieModal').style.display = 'flex'; }
-        async function saveZoomie() {
-            const duration = document.getElementById('zoomieDuration').value;
-            if (!duration) { showToast('❌ Введіть тривалість'); return; }
-            await fetch('/api/zoomies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ duration: parseInt(duration), intensity: parseInt(document.getElementById('zoomieIntensity').value), note: document.getElementById('zoomieNote').value }) });
-            closeModal('zoomieModal'); showToast('🐕 Зуміс зафіксовано'); loadZoomies();
-            document.getElementById('zoomieDuration').value = ''; document.getElementById('zoomieIntensity').value = '3';
-            document.getElementById('zoomieNote').value = '';
-        }
-
-        async function deleteZoomie(id) {
-            if (confirm('Видалити запис про зуміс?')) {
-                await fetch('/api/zoomies', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-                showToast('🗑 Видалено'); loadZoomies();
-            }
-        }
-
-        // ========== КАРАНТИН ==========
-        async function loadQuarantine() {
-            try {
-                const res = await fetch('/api/quarantine');
-                const data = await res.json();
-                const card = document.getElementById('quarantineCard');
-                if (card) {
-                    if (data.in_quarantine) {
-                        card.classList.add('quarantine-warning');
-                        card.classList.remove('quarantine-card');
-                    } else {
-                        card.classList.add('quarantine-card');
-                        card.classList.remove('quarantine-warning');
-                    }
-                    document.getElementById('quarantineStatus').innerHTML = `<div style="padding:10px; text-align:center;">${data.message}</div>`;
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        function showVaccinationDateModal() { document.getElementById('vaccinationDateModal').style.display = 'flex'; }
-        async function saveVaccinationDate() {
-            const date = document.getElementById('vaccinationDate').value;
-            if (!date) { showToast('❌ Виберіть дату'); return; }
-            await fetch('/api/quarantine', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vaccination_date: date }) });
-            closeModal('vaccinationDateModal'); showToast('💉 Дата щеплення збережена'); loadQuarantine();
-        }
-
         async function loadHealthData() {
             try {
                 const res = await fetch('/api/health');
@@ -1118,16 +926,7 @@
         async function loadWeekReport() {
             const res = await fetch('/api/report/week');
             const d = await res.json();
-            document.getElementById('weekReportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p>
-                <p>🍖 Годувань: ${d.feed}</p>
-                <p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p>
-                <p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p>
-                <p>🚽 Туалет: ${d.toilet}</p>
-                <p>⚠️ Поведінка: ${d.behavior || 0}</p>
-                <p>🧠 Ментальне: ${d.mental_minutes} хв</p>
-                <p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>
-                <p>💸 Збитків: ${d.damages_total || 0} грн (${d.damages_count || 0} речей)</p>
-                <p>🐕 Зумісів: ${d.zoomies_count || 0} разів</p>`;
+            document.getElementById('weekReportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p><p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p><p>🚽 Туалет: ${d.toilet}</p><p>⚠️ Поведінка: ${d.behavior || 0}</p><p>🧠 Ментальне: ${d.mental_minutes} хв</p><p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>`;
         }
 
         async function sendDailyReportToTelegram() {
@@ -1254,8 +1053,7 @@
             loadStats(); loadTimeline(); loadWeekly(); loadEventsFeed(); loadWeightData(); loadTrainingData();
             loadHealthData(); loadInsight(); loadSettings(); loadBehaviorTypes();
             loadMeasurements(); loadVetData(); loadFamilyMembers(); loadTodayReport(); loadWeekReport();
-            loadDamages(); loadZoomies(); loadQuarantine();
-            setInterval(() => { loadStats(); loadInsight(); loadTodayReport(); loadQuarantine(); }, 30000);
+            setInterval(() => { loadStats(); loadInsight(); loadTodayReport(); }, 30000);
         });
     </script>
 </body>
