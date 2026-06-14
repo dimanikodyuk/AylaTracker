@@ -901,8 +901,14 @@
         async function saveAllergy() {
             const product = document.getElementById('allergyProduct').value;
             if (!product) { showToast('❌ Введіть продукт'); return; }
-            await fetch('/api/add_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product, reaction: document.getElementById('allergyReaction').value, severity: parseInt(document.getElementById('allergySeverity').value) }) });
-            closeModal('allergyModal'); showToast('⚠️ Додано'); loadHealthData();
+            await fetch('/api/add_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                product: product,
+                reaction: document.getElementById('allergyReaction').value,
+                severity: parseInt(document.getElementById('allergySeverity').value)
+            }) });
+            closeModal('allergyModal');
+            showToast('⚠️ Додано');
+            loadHealthData();
         }
 
         async function deleteAllergy(id) {

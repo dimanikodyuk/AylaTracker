@@ -9,6 +9,10 @@ import time
 import os
 from datetime import datetime, timedelta
 from contextlib import contextmanager
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = "ayla.db"
 _db_lock = threading.Lock()
@@ -368,13 +372,35 @@ def get_safe_walk_duration_minutes():
     return months * 5
 
 
-def calculate_daily_food_amount(weight_kg):
-    if not weight_kg:
+def calculate_daily_food_amount(weight_kg, activity_factor=1.6):
+    """
+    Розрахунок добової норми корму за формулою RER
+    RER = 70 * (weight_kg)^0.75
+    activity_factor:
+    - 1.2: стерилізована/кастрована доросла собака
+    - 1.6: активна доросла собака
+    - 2.0: цуценя (до 4 місяців)
+    - 1.8: цуценя (4-12 місяців)
+    - 3.0: дуже активна собака
+    """
+    if not weight_kg or weight_kg <= 0:
         weight_kg = 5
-    calories_needed = weight_kg * 200
+
+    # RER формула
+    rer = 70 * (weight_kg ** 0.75)
+    daily_calories = rer * activity_factor
+
     food_density = float(get_setting('food_density_calories', 3800))
-    daily_grams = (calories_needed / food_density) * 1000
-    return max(50, min(400, int(daily_grams)))
+    daily_grams = (daily_calories / food_density) * 1000
+
+    # Віковий коефіцієнт
+    months = get_pet_age_months()
+    if months < 4:
+        daily_grams *= 2
+    elif months < 12:
+        daily_grams *= 1.8
+
+    return max(50, min(800, int(daily_grams)))
 
 
 def add_event(event_type, subtype=None, value=None, note=None, user_id=None):
@@ -866,18 +892,16 @@ def complete_reminder(reminder_id):
             reminder_time = row['reminder_time'] or '09:00'
             reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
 
-            # Розраховуємо наступну дату - через interval_days днів від сьогодні
             next_due_date = datetime(now.year, now.month, now.day, reminder_hour, reminder_minute, 0)
 
-            # Якщо час сьогодні вже минув, беремо завтра
             if next_due_date <= now:
                 next_due_date += timedelta(days=1)
 
-            # Додаємо інтервал
             next_due_date += timedelta(days=row['interval_days'])
             next_due = int(next_due_date.timestamp())
 
-            logger.info(f"Виконання нагадування {reminder_id}, наступне: {next_due_date.strftime('%Y-%m-%d %H:%M:%S')}")
+            # Використовуємо print замість logger (або можна залишити коментар)
+            print(f"Виконання нагадування {reminder_id}, наступне: {next_due_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
             conn.execute("""
                 UPDATE medical_reminders SET last_triggered = ?, next_due = ? WHERE id = ?
@@ -885,6 +909,21 @@ def complete_reminder(reminder_id):
             return True
     return False
 
+
+def get_notification_recipients():
+    """Отримати список chat_id для сповіщень (без відправки)"""
+    members = get_family_members()
+    group_chats = get_group_chats()
+    recipients = []
+
+    for m in members:
+        if m['chat_id'] and m['notify_enabled']:
+            recipients.append(m['chat_id'])
+
+    for g in group_chats:
+        recipients.append(g['chat_id'])
+
+    return recipients
 
 def delete_reminder(reminder_id):
     with get_db() as conn:

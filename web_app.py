@@ -159,6 +159,14 @@ def generate_weekly_chart(weekly_data):
         logger.error(f"Chart generation error: {e}")
         return None
 
+def send_notifications(message):
+    """Відправка сповіщень всім отримувачам"""
+    recipients = db.get_notification_recipients()
+    sent = 0
+    for chat_id in recipients:
+        if send_telegram(message, chat_id):
+            sent += 1
+    return sent
 
 def build_daily_report_text(date_str, events, pet_name='Айла'):
     """Формує красивий текст денного звіту"""
