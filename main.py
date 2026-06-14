@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Головний модуль запуску (оптимізований для RPi4)
+Ayla Tracker - Головний модуль запуску
 """
 
 import threading
@@ -23,7 +23,6 @@ def signal_handler(sig, frame):
 
 
 def main():
-    # Перевірка на вже запущений процес
     pid_file = "ayla_tracker.pid"
     if os.path.exists(pid_file):
         try:
@@ -41,21 +40,18 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    logger.info("🐶 Запуск Ayla Tracker System на Raspberry Pi")
+    logger.info("🐶 Запуск Ayla Tracker System")
 
     try:
         from web_app import run_web
         from simple_bot import run_bot
 
-        # Запуск веб-сервера в окремому потоці
         web_thread = threading.Thread(target=run_web, daemon=True)
         web_thread.start()
         logger.info("✅ Веб-сервер запущено")
 
-        # Невелика затримка для ініціалізації веб-сервера
         time.sleep(2)
 
-        # Запуск бота (блокуючий виклик)
         logger.info("🚀 Запуск Telegram бота...")
         run_bot()
 

@@ -40,384 +40,274 @@ def get_db():
             conn.close()
 
 
-def migrate_db():
-    """Міграція бази даних - додавання нових колонок та таблиць (БЕЗ ВТРАТИ ДАНИХ)"""
+def init_db():
+    """Ініціалізація бази даних"""
     with get_db() as conn:
-        # Перевіряємо таблицю medical_reminders
-        cursor = conn.execute("PRAGMA table_info(medical_reminders)")
-        columns = [col[1] for col in cursor.fetchall()]
-
-        if 'reminder_time' not in columns:
-            conn.execute("ALTER TABLE medical_reminders ADD COLUMN reminder_time TEXT DEFAULT '09:00'")
-            logger.info("✅ Додано колонку reminder_time до medical_reminders")
-
-        if 'last_triggered' not in columns:
-            conn.execute("ALTER TABLE medical_reminders ADD COLUMN last_triggered INTEGER DEFAULT 0")
-            logger.info("✅ Додано колонку last_triggered до medical_reminders")
-
-        # Перевіряємо таблицю body_measurements
-        cursor = conn.execute("PRAGMA table_info(body_measurements)")
-        columns = [col[1] for col in cursor.fetchall()]
-
-        if 'note' not in columns:
-            conn.execute("ALTER TABLE body_measurements ADD COLUMN note TEXT")
-            logger.info("✅ Додано колонку note до body_measurements")
-
-        # Перевіряємо таблицю allowed_users
-        cursor = conn.execute("PRAGMA table_info(allowed_users)")
-        columns = [col[1] for col in cursor.fetchall()]
-
-        if 'role' not in columns:
-            conn.execute("ALTER TABLE allowed_users ADD COLUMN role TEXT DEFAULT 'user'")
-            logger.info("✅ Додано колонку role до allowed_users")
-
-        # ========== НОВІ ТАБЛИЦІ (тільки CREATE IF NOT EXISTS) ==========
-
-        # Таблиця збитків
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS damages (
+        conn.executescript('''
+            CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp INTEGER NOT NULL,
-                item_name TEXT NOT NULL,
-                cost REAL NOT NULL,
-                category TEXT,
+                type TEXT NOT NULL,
+                subtype TEXT,
+                value INTEGER,
                 note TEXT,
                 user_id INTEGER
-            )
-        ''')
-        logger.info("✅ Перевірено/створено таблицю damages")
+            );
 
-        # Таблиця карантину
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS quarantine (
+            CREATE TABLE IF NOT EXISTS active_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                last_vaccination_date INTEGER NOT NULL,
-                quarantine_end_date INTEGER NOT NULL,
-                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-            )
-        ''')
-        logger.info("✅ Перевірено/створено таблицю quarantine")
+                session_type TEXT NOT NULL,
+                start_time INTEGER NOT NULL,
+                expected_duration INTEGER DEFAULT 0,
+                note TEXT
+            );
 
-        # Додаємо початковий запис карантину тільки якщо таблиця порожня
-        count = conn.execute("SELECT COUNT(*) FROM quarantine").fetchone()[0]
-        if count == 0:
-            default_date = int((datetime.now() - timedelta(days=1)).timestamp())
-            conn.execute("""
-                INSERT INTO quarantine (last_vaccination_date, quarantine_end_date)
-                VALUES (?, ?)
-            """, (default_date, default_date))
-            logger.info("✅ Додано початковий запис quarantine (карантин завершено)")
-
-        # Таблиця зумісів
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS zoomies (
+            CREATE TABLE IF NOT EXISTS weight_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp INTEGER NOT NULL,
+                weight REAL NOT NULL,
+                note TEXT,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS training_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                command TEXT NOT NULL,
                 duration INTEGER,
-                intensity INTEGER DEFAULT 3,
+                success_rate INTEGER,
+                note TEXT,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS training_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                icon TEXT DEFAULT '🏋️',
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS mental_activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                activity_type TEXT NOT NULL,
+                duration INTEGER,
+                difficulty INTEGER,
+                note TEXT,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS mental_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                icon TEXT DEFAULT '🧠',
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS behavior_types (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                icon TEXT DEFAULT '⚠️',
+                severity INTEGER DEFAULT 1,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS medical_reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                reminder_time TEXT,
+                interval_days INTEGER NOT NULL,
+                last_triggered INTEGER,
+                next_due INTEGER NOT NULL,
+                enabled INTEGER DEFAULT 1,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS symptoms_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                temperature REAL,
+                appetite INTEGER,
+                mood TEXT,
+                note TEXT,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS vet_clinics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                address TEXT,
+                phone TEXT,
+                website TEXT,
                 note TEXT
-            )
+            );
+
+            CREATE TABLE IF NOT EXISTS food_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                food_type TEXT NOT NULL,
+                amount REAL,
+                brand TEXT,
+                note TEXT,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS allergies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product TEXT NOT NULL,
+                reaction TEXT,
+                severity INTEGER,
+                note TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS diary (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                user_id INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS potty_cues (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                cue_type TEXT NOT NULL,
+                success INTEGER DEFAULT 0,
+                note TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS trigger_exposures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                trigger_type TEXT NOT NULL,
+                reaction_score INTEGER,
+                note TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS allowed_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL UNIQUE,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                added_at INTEGER NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                role TEXT DEFAULT 'user'
+            );
+
+            CREATE TABLE IF NOT EXISTS group_chats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL UNIQUE,
+                title TEXT,
+                is_active INTEGER DEFAULT 1,
+                added_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS vet_vaccinations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vaccine_name TEXT NOT NULL,
+                vaccine_date INTEGER NOT NULL,
+                vaccine_next_due INTEGER,
+                vaccine_series TEXT,
+                vet_name TEXT,
+                clinic_name TEXT,
+                notes TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS parasite_treatment (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                treatment_name TEXT NOT NULL,
+                treatment_date INTEGER NOT NULL,
+                next_due INTEGER,
+                parasite_type TEXT,
+                medication_name TEXT,
+                dosage TEXT,
+                notes TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS dental_care (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                procedure_date INTEGER NOT NULL,
+                procedure_type TEXT NOT NULL,
+                vet_name TEXT,
+                notes TEXT,
+                next_due INTEGER,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS family_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                role TEXT DEFAULT 'member',
+                chat_id INTEGER,
+                notify_enabled INTEGER DEFAULT 1,
+                added_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS smart_reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                condition_type TEXT NOT NULL,
+                condition_value TEXT,
+                days_before INTEGER DEFAULT 0,
+                enabled INTEGER DEFAULT 1,
+                last_triggered INTEGER,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS body_measurements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                neck_cm REAL,
+                chest_cm REAL,
+                waist_cm REAL,
+                length_cm REAL,
+                height_cm REAL,
+                note TEXT,
+                user_id INTEGER
+            );
         ''')
-        logger.info("✅ Перевірено/створено таблицю zoomies")
 
-        # Додаємо нові налаштування, якщо їх немає
-        new_settings = {
-            "last_vaccination_date": "",
-            "quarantine_days": "14"
+        defaults = {
+            "pet_name": "Айла",
+            "birth_date": "",
+            "target_weight": "8.0",
+            "telegram_bot_token": "",
+            "telegram_chat_id": "",
+            "group_chat_id": "",
+            "food_density_calories": "3800",
+            "potty_reminder_minutes": "25",
+            "planned_meals": "4",
+            "planned_sleep_hours": "20"
         }
-        for key, value in new_settings.items():
+        for key, value in defaults.items():
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, value))
-            logger.info(f"✅ Перевірено налаштування {key}")
 
-        logger.info("✅ Міграцію БД завершено (дані збережено)")
+        training_defaults = [("Сідати", "🐕"), ("Лежати", "😴"), ("До мене", "🏃"), ("Поруч", "🚶"), ("Дай лапу", "🖐️"),
+                             ("Голос", "🗣️"), ("Апорт", "🎾")]
+        for name, icon in training_defaults:
+            conn.execute('INSERT OR IGNORE INTO training_types (name, icon) VALUES (?, ?)', (name, icon))
 
+        mental_defaults = [("Головоломка", "🧩"), ("Пошук ласощів", "🔍"), ("Вивчення трюків", "🎓"),
+                           ("Нюхальний килимок", "👃"), ("Клікер-тренування", "🖱️"), ("Соціалізація", "🤝")]
+        for name, icon in mental_defaults:
+            conn.execute('INSERT OR IGNORE INTO mental_types (name, icon) VALUES (?, ?)', (name, icon))
 
-def init_db():
-    """Ініціалізація бази даних - створює таблиці ТІЛЬКИ якщо їх немає"""
-    with get_db() as conn:
-        # Перевіряємо чи існує таблиця events (ознака, що БД вже створена)
-        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='events'")
-        table_exists = cursor.fetchone() is not None
+        behavior_defaults = [("Кусається", "🦷", 3), ("Гавкає", "🗣️", 2), ("Гризе меблі", "🪑", 3),
+                             ("Стрибає на людей", "🦘", 2), ("Тягне повідок", "🪢", 2), ("Погана поведінка", "⚠️", 1)]
+        for name, icon, severity in behavior_defaults:
+            conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)', (name, icon, severity))
 
-        if not table_exists:
-            # Тільки якщо БД порожня - створюємо всі таблиці
-            conn.executescript('''
-                CREATE TABLE IF NOT EXISTS events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    type TEXT NOT NULL,
-                    subtype TEXT,
-                    value INTEGER,
-                    note TEXT,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS active_sessions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_type TEXT NOT NULL,
-                    start_time INTEGER NOT NULL,
-                    expected_duration INTEGER DEFAULT 0,
-                    note TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS weight_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    weight REAL NOT NULL,
-                    note TEXT,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS training_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    command TEXT NOT NULL,
-                    duration INTEGER,
-                    success_rate INTEGER,
-                    note TEXT,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS training_types (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    icon TEXT DEFAULT '🏋️',
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS mental_activities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    activity_type TEXT NOT NULL,
-                    duration INTEGER,
-                    difficulty INTEGER,
-                    note TEXT,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS mental_types (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    icon TEXT DEFAULT '🧠',
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS behavior_types (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    icon TEXT DEFAULT '⚠️',
-                    severity INTEGER DEFAULT 1,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS medical_reminders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    reminder_time TEXT,
-                    interval_days INTEGER NOT NULL,
-                    last_triggered INTEGER,
-                    next_due INTEGER NOT NULL,
-                    enabled INTEGER DEFAULT 1,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS symptoms_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    temperature REAL,
-                    appetite INTEGER,
-                    mood TEXT,
-                    note TEXT,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS vet_clinics (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    address TEXT,
-                    phone TEXT,
-                    website TEXT,
-                    note TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS food_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    food_type TEXT NOT NULL,
-                    amount REAL,
-                    brand TEXT,
-                    note TEXT,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS allergies (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    product TEXT NOT NULL,
-                    reaction TEXT,
-                    severity INTEGER,
-                    note TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS diary (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    content TEXT NOT NULL,
-                    user_id INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS potty_cues (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    cue_type TEXT NOT NULL,
-                    success INTEGER DEFAULT 0,
-                    note TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS trigger_exposures (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    trigger_type TEXT NOT NULL,
-                    reaction_score INTEGER,
-                    note TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS allowed_users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chat_id INTEGER NOT NULL UNIQUE,
-                    username TEXT,
-                    first_name TEXT,
-                    last_name TEXT,
-                    added_at INTEGER NOT NULL,
-                    is_active INTEGER DEFAULT 1,
-                    role TEXT DEFAULT 'user'
-                );
-
-                CREATE TABLE IF NOT EXISTS group_chats (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chat_id INTEGER NOT NULL UNIQUE,
-                    title TEXT,
-                    is_active INTEGER DEFAULT 1,
-                    added_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS vet_vaccinations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    vaccine_name TEXT NOT NULL,
-                    vaccine_date INTEGER NOT NULL,
-                    vaccine_next_due INTEGER,
-                    vaccine_series TEXT,
-                    vet_name TEXT,
-                    clinic_name TEXT,
-                    notes TEXT,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS parasite_treatment (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    treatment_name TEXT NOT NULL,
-                    treatment_date INTEGER NOT NULL,
-                    next_due INTEGER,
-                    parasite_type TEXT,
-                    medication_name TEXT,
-                    dosage TEXT,
-                    notes TEXT,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS dental_care (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    procedure_date INTEGER NOT NULL,
-                    procedure_type TEXT NOT NULL,
-                    vet_name TEXT,
-                    notes TEXT,
-                    next_due INTEGER,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS family_members (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    role TEXT DEFAULT 'member',
-                    chat_id INTEGER,
-                    notify_enabled INTEGER DEFAULT 1,
-                    added_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS smart_reminders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    condition_type TEXT NOT NULL,
-                    condition_value TEXT,
-                    days_before INTEGER DEFAULT 0,
-                    enabled INTEGER DEFAULT 1,
-                    last_triggered INTEGER,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now'))
-                );
-
-                CREATE TABLE IF NOT EXISTS body_measurements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp INTEGER NOT NULL,
-                    neck_cm REAL,
-                    chest_cm REAL,
-                    waist_cm REAL,
-                    length_cm REAL,
-                    height_cm REAL,
-                    note TEXT,
-                    user_id INTEGER
-                );
-            ''')
-
-            # Ініціалізація налаштувань тільки для нової БД
-            defaults = {
-                "pet_name": "Айла",
-                "birth_date": "",
-                "target_weight": "8.0",
-                "telegram_bot_token": "",
-                "telegram_chat_id": "",
-                "group_chat_id": "",
-                "food_density_calories": "3800",
-                "potty_reminder_minutes": "25",
-                "planned_meals": "4",
-                "planned_sleep_hours": "20"
-            }
-            for key, value in defaults.items():
-                conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, value))
-
-            # Типи тренувань
-            training_defaults = [("Сідати", "🐕"), ("Лежати", "😴"), ("До мене", "🏃"), ("Поруч", "🚶"), ("Дай лапу", "🖐️"),
-                                 ("Голос", "🗣️"), ("Апорт", "🎾")]
-            for name, icon in training_defaults:
-                conn.execute('INSERT OR IGNORE INTO training_types (name, icon) VALUES (?, ?)', (name, icon))
-
-            # Типи ментальних активностей
-            mental_defaults = [("Головоломка", "🧩"), ("Пошук ласощів", "🔍"), ("Вивчення трюків", "🎓"),
-                               ("Нюхальний килимок", "👃"), ("Клікер-тренування", "🖱️"), ("Соціалізація", "🤝")]
-            for name, icon in mental_defaults:
-                conn.execute('INSERT OR IGNORE INTO mental_types (name, icon) VALUES (?, ?)', (name, icon))
-
-            # Типи поведінки
-            behavior_defaults = [("Кусається", "🦷", 3), ("Гавкає", "🗣️", 2), ("Гризе меблі", "🪑", 3),
-                                 ("Стрибає на людей", "🦘", 2), ("Тягне повідок", "🪢", 2), ("Погана поведінка", "⚠️", 1)]
-            for name, icon, severity in behavior_defaults:
-                conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)',
-                             (name, icon, severity))
-
-            logger.info("✅ Нова база даних створена")
-        else:
-            logger.info("✅ Існуюча база даних знайдена, дані збережено")
-
-    # Виконуємо міграцію (додаємо нові таблиці та колонки)
-    migrate_db()
-
-    print("✅ База даних ініціалізована (дані збережено)")
+    print("✅ База даних ініціалізована")
 
 
 def get_setting(key, default=None):
@@ -430,10 +320,6 @@ def set_setting(key, value):
     with get_db() as conn:
         conn.execute('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
                      (key, value, int(time.time())))
-
-
-def get_pet_name():
-    return get_setting('pet_name', 'Айла')
 
 
 def get_pet_age_months():
@@ -451,26 +337,24 @@ def get_pet_age_months():
 
 def get_safe_walk_duration_minutes():
     months = get_pet_age_months()
-    return min(months * 5, 120)
+    return months * 5
 
 
-def calculate_daily_food_amount(weight_kg, activity_factor=None):
+def calculate_daily_food_amount(weight_kg, activity_factor=1.6):
     if not weight_kg or weight_kg <= 0:
         weight_kg = 5
-
-    months = get_pet_age_months()
-    if months < 4:
-        activity_factor = 2.0
-    elif months < 12:
-        activity_factor = 1.8
-    else:
-        activity_factor = 1.6
 
     rer = 70 * (weight_kg ** 0.75)
     daily_calories = rer * activity_factor
 
     food_density = float(get_setting('food_density_calories', 3800))
     daily_grams = (daily_calories / food_density) * 1000
+
+    months = get_pet_age_months()
+    if months < 4:
+        daily_grams *= 2
+    elif months < 12:
+        daily_grams *= 1.8
 
     return max(50, min(800, int(daily_grams)))
 
@@ -582,19 +466,11 @@ def stop_session(session_type):
 def get_today_stats():
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
-        feed = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        walk = \
-        conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[
-            0] or 0
-        toilet = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        sleep = \
-        conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[
-            0] or 0
-        behavior = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (today_start,)).fetchone()[
-            0]
+        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        walk = conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
+        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        sleep = conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
+        behavior = conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (today_start,)).fetchone()[0]
         return {
             'feed': feed,
             'walk_minutes': walk // 60,
@@ -623,9 +499,7 @@ def get_settings():
             'telegram_bot_token': '',
             'telegram_chat_id': '',
             'group_chat_id': '',
-            'potty_reminder_minutes': '25',
-            'last_vaccination_date': '',
-            'quarantine_days': '14'
+            'potty_reminder_minutes': '25'
         }
 
         for key, default in defaults.items():
@@ -756,8 +630,7 @@ def get_training_stats():
             SELECT command, COUNT(*) as count, AVG(success_rate) as avg_success
             FROM training_logs GROUP BY command
         """).fetchall()
-        return [{'command': r['command'], 'count': r['count'], 'avg_success': round(r['avg_success'], 1)} for r in
-                stats]
+        return [{'command': r['command'], 'count': r['count'], 'avg_success': round(r['avg_success'], 1)} for r in stats]
 
 
 def get_training_history(limit=50):
@@ -859,8 +732,7 @@ def add_mental_type(name, icon='🧠'):
 
 def get_behavior_types():
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT id, name, icon, severity FROM behavior_types ORDER BY severity DESC, name").fetchall()
+        rows = conn.execute("SELECT id, name, icon, severity FROM behavior_types ORDER BY severity DESC, name").fetchall()
         return [dict(r) for r in rows]
 
 
@@ -1110,23 +982,14 @@ def get_weekly_chart_data():
 def get_full_report(days=7):
     start_time = int(time.time()) - days * 86400
     with get_db() as conn:
-        feed = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?",
-                            (start_time,)).fetchone()[0]
-        toilet = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?",
-                             (start_time,)).fetchone()[0]
-        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?",
-                              (start_time,)).fetchone()[0]
-        training_count = \
-        conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
-        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?",
-                                    (start_time,)).fetchone()[0]
-        behavior = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (start_time,)).fetchone()[
-            0]
+        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        training_count = conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        behavior = conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (start_time,)).fetchone()[0]
 
         return {
             'days': days,
@@ -1336,187 +1199,3 @@ def notify_family(message):
             pass
 
     return notified
-
-
-# ========== НОВІ ФУНКЦІЇ ДЛЯ ЦУЦЕНЯТИ ==========
-
-# ----- 1. КАЛЬКУЛЯТОР ЗБИТКІВ -----
-
-def add_damage(item_name, cost, category=None, note=None):
-    """Додати запис про знищену річ"""
-    with get_db() as conn:
-        now = int(time.time())
-        conn.execute("""
-            INSERT INTO damages (timestamp, item_name, cost, category, note)
-            VALUES (?, ?, ?, ?, ?)
-        """, (now, item_name, cost, category, note))
-        return True
-
-
-def get_damages(limit=100):
-    """Отримати список збитків"""
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT id, item_name, cost, category, note,
-                   datetime(timestamp, 'unixepoch', 'localtime') as date,
-                   timestamp
-            FROM damages ORDER BY timestamp DESC LIMIT ?
-        """, (limit,)).fetchall()
-        return [dict(r) for r in rows]
-
-
-def get_damages_stats(days=30):
-    """Отримати статистику збитків за період"""
-    start_time = int(time.time()) - days * 86400
-    with get_db() as conn:
-        total = conn.execute("""
-            SELECT COALESCE(SUM(cost), 0) as total FROM damages 
-            WHERE timestamp >= ?
-        """, (start_time,)).fetchone()['total']
-
-        by_category = conn.execute("""
-            SELECT category, COUNT(*) as count, COALESCE(SUM(cost), 0) as total
-            FROM damages WHERE timestamp >= ? AND category IS NOT NULL
-            GROUP BY category ORDER BY total DESC
-        """, (start_time,)).fetchall()
-
-        last = conn.execute("""
-            SELECT item_name, cost, datetime(timestamp, 'unixepoch', 'localtime') as date
-            FROM damages ORDER BY timestamp DESC LIMIT 1
-        """).fetchone()
-
-        return {
-            'total': total,
-            'count': len(get_damages(1000)),
-            'by_category': [dict(c) for c in by_category],
-            'last': dict(last) if last else None
-        }
-
-
-def delete_damage(damage_id):
-    """Видалити запис про збиток"""
-    with get_db() as conn:
-        conn.execute("DELETE FROM damages WHERE id = ?", (damage_id,))
-        return True
-
-
-# ----- 2. КОНТРОЛЬ ВАКЦИНАЦІЙНОГО КАРАНТИНУ -----
-
-def set_last_vaccination(vaccination_date):
-    """Встановити дату останнього щеплення"""
-    with get_db() as conn:
-        date_ts = int(datetime.strptime(vaccination_date, '%Y-%m-%d').timestamp())
-        quarantine_days = int(get_setting('quarantine_days', 14))
-        end_ts = date_ts + quarantine_days * 86400
-
-        set_setting('last_vaccination_date', vaccination_date)
-
-        conn.execute("DELETE FROM quarantine")
-        conn.execute("""
-            INSERT INTO quarantine (last_vaccination_date, quarantine_end_date)
-            VALUES (?, ?)
-        """, (date_ts, end_ts))
-
-        return True
-
-
-def get_quarantine_status():
-    """Отримати статус карантину"""
-    with get_db() as conn:
-        row = conn.execute("""
-            SELECT last_vaccination_date, quarantine_end_date
-            FROM quarantine ORDER BY id DESC LIMIT 1
-        """).fetchone()
-
-        if not row:
-            return {
-                'in_quarantine': False,
-                'days_left': 0,
-                'message': "ℹ️ Щеплення не зареєстровані. Айла може гуляти!"
-            }
-
-        now = int(time.time())
-        end_date = row['quarantine_end_date']
-        last_vaccine_date = row['last_vaccination_date']
-
-        if now >= end_date:
-            days_left = 0
-            in_quarantine = False
-            message = f"✅ Карантин завершено! Айла може гуляти на вулиці."
-        else:
-            days_left = (end_date - now) // 86400 + 1
-            in_quarantine = True
-            message = f"🚨 <b>Увага! ВАКЦИНАЦІЙНИЙ КАРАНТИН!</b>\n\nДо кінця карантину ще {days_left} днів.\nГуляти тільки на руках або вдома! Не контактувати з іншими собаками та землею."
-
-        if last_vaccine_date:
-            last_date = datetime.fromtimestamp(last_vaccine_date)
-            days_since_vaccine = (datetime.now() - last_date).days
-            if days_since_vaccine < 14:
-                message += f"\n\n💉 Останнє щеплення: {last_date.strftime('%d.%m.%Y')}\n⏳ Пройшло: {days_since_vaccine} днів з 14"
-
-        return {
-            'in_quarantine': in_quarantine,
-            'days_left': days_left,
-            'message': message,
-            'end_date': datetime.fromtimestamp(end_date).strftime('%d.%m.%Y') if end_date else None
-        }
-
-
-# ----- 3. ТРЕКЕР ЗУМІСІВ (FRAP) -----
-
-def add_zoomie(duration, intensity=3, note=None):
-    """Додати запис про зуміс (раптовий напад енергії)"""
-    with get_db() as conn:
-        now = int(time.time())
-        conn.execute("""
-            INSERT INTO zoomies (timestamp, duration, intensity, note)
-            VALUES (?, ?, ?, ?)
-        """, (now, duration, intensity, note))
-        return True
-
-
-def get_zoomies(limit=50):
-    """Отримати список зумісів"""
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT id, duration, intensity, note,
-                   datetime(timestamp, 'unixepoch', 'localtime') as date,
-                   time(timestamp, 'unixepoch', 'localtime') as time_of_day,
-                   timestamp
-            FROM zoomies ORDER BY timestamp DESC LIMIT ?
-        """, (limit,)).fetchall()
-        return [dict(r) for r in rows]
-
-
-def get_zoomies_stats(days=30):
-    """Отримати статистику зумісів"""
-    start_time = int(time.time()) - days * 86400
-    with get_db() as conn:
-        count = conn.execute("""
-            SELECT COUNT(*) as count FROM zoomies WHERE timestamp >= ?
-        """, (start_time,)).fetchone()['count']
-
-        avg_duration = conn.execute("""
-            SELECT COALESCE(AVG(duration), 0) as avg_duration FROM zoomies WHERE timestamp >= ?
-        """, (start_time,)).fetchone()['avg_duration']
-
-        hour_stats = conn.execute("""
-            SELECT strftime('%H', datetime(timestamp, 'unixepoch', 'localtime')) as hour,
-                   COUNT(*) as count
-            FROM zoomies WHERE timestamp >= ?
-            GROUP BY hour ORDER BY count DESC
-        """, (start_time,)).fetchall()
-
-        return {
-            'count': count,
-            'avg_duration': round(avg_duration, 1),
-            'hour_stats': [dict(h) for h in hour_stats],
-            'peak_hour': hour_stats[0]['hour'] if hour_stats else None
-        }
-
-
-def delete_zoomie(zoomie_id):
-    """Видалити запис про зуміс"""
-    with get_db() as conn:
-        conn.execute("DELETE FROM zoomies WHERE id = ?", (zoomie_id,))
-        return True

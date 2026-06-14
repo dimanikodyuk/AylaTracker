@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Web Dashboard (оновлена версія з покращеними звітами)
+Ayla Tracker - Web Dashboard
 """
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -171,8 +171,6 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
     sleep_events = [e for e in events if e['type'] == 'sleep']
     toilet_events = [e for e in events if e['type'] == 'toilet']
     behavior_events = [e for e in events if e['type'] == 'behavior']
-    training_events = [e for e in events if e['type'] == 'training']
-    mental_events = [e for e in events if e['type'] == 'mental']
 
     walk_min = sum(e['value'] for e in walk_events if e['value']) // 60
     sleep_hrs = sum(e['value'] for e in sleep_events if e['value']) / 3600
@@ -192,7 +190,6 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
     if walk_min >= 40: score += 1
     if sleep_hrs >= 10: score += 2
     if not behavior_events: score += 2
-    if training_events: score += 1
 
     mood_emoji = '🌟' if score >= 8 else ('😊' if score >= 5 else '😐')
 
@@ -236,13 +233,6 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
         "",
         f"🚽 <b>Туалет</b>: 💧 Піся ×{pee}   💩 Кака ×{poop}",
     ]
-
-    if training_events:
-        lines += ["", f"🏋️ <b>Тренування</b>: {len(training_events)} сесій"]
-
-    if mental_events:
-        total_mental = sum(e.get('duration', 0) for e in mental_events)
-        lines += ["", f"🧠 <b>Ментальна активність</b>: {total_mental} хв"]
 
     if behavior_events:
         lines += ["", f"⚠️ <b>Поведінка</b>: {len(behavior_events)} інцидент(ів)"]
@@ -829,20 +819,10 @@ def api_report():
 @app.route('/api/report/week')
 def api_report_week():
     try:
-        report = db.get_full_report(7)
-        damages = db.get_damages_stats(7)
-        zoomies = db.get_zoomies_stats(7)
-        return jsonify({
-            **report,
-            'damages_total': damages['total'],
-            'damages_count': damages['count'],
-            'zoomies_count': zoomies['count'],
-            'zoomies_avg_duration': zoomies['avg_duration']
-        })
+        return jsonify(db.get_full_report(7))
     except Exception as e:
         return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0,
-                        'mental_minutes': 0, 'training_count': 0, 'training_avg': 0, 'behavior': 0,
-                        'damages_total': 0, 'damages_count': 0, 'zoomies_count': 0, 'zoomies_avg_duration': 0})
+                        'mental_minutes': 0, 'training_count': 0, 'training_avg': 0, 'behavior': 0})
 
 
 @app.route('/api/send_report', methods=['POST'])
@@ -850,16 +830,9 @@ def api_send_report():
     try:
         pet_name = db.get_setting('pet_name', 'Айла')
         report = db.get_full_report(7)
-        damages = db.get_damages_stats(7)
-        zoomies = db.get_zoomies_stats(7)
         weekly_data = db.get_weekly_chart_data()
 
         text = build_weekly_report_text(report, pet_name)
-        if damages['total'] > 0:
-            text += f"\n\n💸 Збитки за тиждень: {damages['total']:.0f} грн"
-        if zoomies['count'] > 0:
-            text += f"\n🐕 Зумісів: {zoomies['count']} разів"
-
         chart_bytes = generate_weekly_chart(weekly_data)
 
         recipients = [None] + [g['chat_id'] for g in db.get_group_chats()]
@@ -913,11 +886,6 @@ def api_insight():
         insight = f"📊 Прогрес: {stats['feed']}/{planned_meals} годів ({feed_percent}%), {stats['walk_minutes']} хв прогулянок."
         if stats['walk_minutes'] > safe:
             insight += f" ⚠️ Ліміт прогулянки {safe} хв."
-
-        quarantine = db.get_quarantine_status()
-        if quarantine['in_quarantine']:
-            insight += f" 🚨 Карантин: {quarantine['days_left']} днів."
-
         return jsonify({'insight': insight})
     except Exception as e:
         return jsonify({'insight': '🐾 Вітаємо! Система працює.'})
@@ -960,62 +928,6 @@ def api_test_telegram():
         return jsonify({'message': f'❌ Помилка: {response.text}'})
     except Exception as e:
         return jsonify({'message': f'❌ Помилка: {str(e)}'})
-
-
-# ========== НОВІ API ==========
-
-@app.route('/api/damages', methods=['GET', 'POST', 'DELETE'])
-def api_damages():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.add_damage(data['item_name'], data['cost'], data.get('category'), data.get('note'))
-            return jsonify({'success': True})
-        elif request.method == 'DELETE':
-            data = request.get_json()
-            db.delete_damage(data['id'])
-            return jsonify({'success': True})
-        else:
-            damages = db.get_damages(100)
-            stats = db.get_damages_stats(30)
-            return jsonify({'damages': damages, 'stats': stats})
-    except Exception as e:
-        logger.error(f"Damages API error: {e}")
-        return jsonify({'damages': [], 'stats': {'total': 0, 'count': 0}})
-
-
-@app.route('/api/zoomies', methods=['GET', 'POST', 'DELETE'])
-def api_zoomies():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.add_zoomie(data['duration'], data.get('intensity', 3), data.get('note'))
-            return jsonify({'success': True})
-        elif request.method == 'DELETE':
-            data = request.get_json()
-            db.delete_zoomie(data['id'])
-            return jsonify({'success': True})
-        else:
-            zoomies = db.get_zoomies(100)
-            stats = db.get_zoomies_stats(30)
-            return jsonify({'zoomies': zoomies, 'stats': stats})
-    except Exception as e:
-        logger.error(f"Zoomies API error: {e}")
-        return jsonify({'zoomies': [], 'stats': {'count': 0, 'avg_duration': 0}})
-
-
-@app.route('/api/quarantine', methods=['GET', 'POST'])
-def api_quarantine():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.set_last_vaccination(data['vaccination_date'])
-            return jsonify({'success': True})
-        else:
-            return jsonify(db.get_quarantine_status())
-    except Exception as e:
-        logger.error(f"Quarantine API error: {e}")
-        return jsonify({'in_quarantine': False, 'days_left': 0, 'message': 'Помилка'})
 
 
 # ========== ВЕТПАСПОРТ ТА СІМ'Я ==========
