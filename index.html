@@ -101,7 +101,8 @@
             cursor: pointer;
             font-weight: 500;
         }
-        .timeline-canvas { position: relative; height: 300px; margin-bottom: 20px; }
+        .timeline-canvas { position: relative; height: 320px; margin-bottom: 20px; overflow: hidden; }
+        .timeline-svg { width: 100%; height: 100%; display: block; }
         .timeline-legend { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
         .legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .tabs {
@@ -288,7 +289,7 @@
                 <button onclick="changeDay(1)">Завтра ▶</button>
             </div>
         </div>
-        <div class="timeline-canvas"><canvas id="timelineChart"></canvas></div>
+        <div class="timeline-canvas" id="timelineContainer"></div>
         <div class="timeline-legend">
             <div><span class="legend-dot" style="background:#9b59b6"></span>Сон</div>
             <div><span class="legend-dot" style="background:#3498db"></span>Прогулянка</div>
@@ -532,31 +533,97 @@
             try {
                 const res = await fetch(`/api/timeline?offset=${currentDayOffset}`);
                 const data = await res.json();
-                const sleepPoints = [], walkPoints = [], feedPoints = [], toiletPoints = [], behaviorPoints = [];
-                data.events.forEach(e => {
-                    const hour = e.hour + (e.minute / 60);
-                    if (e.type === 'sleep' && e.duration > 0) sleepPoints.push({ x: hour, y: 10, duration: e.duration });
-                    else if (e.type === 'walk' && e.duration > 0) walkPoints.push({ x: hour, y: 20, duration: e.duration });
-                    else if (e.type === 'feed') feedPoints.push({ x: hour, y: 30 });
-                    else if (e.type === 'toilet') toiletPoints.push({ x: hour, y: 40 });
-                    else if (e.type === 'behavior') behaviorPoints.push({ x: hour, y: 50 });
-                });
-                if (timelineChart) timelineChart.destroy();
-                timelineChart = new Chart(document.getElementById('timelineChart'), {
-                    type: 'scatter',
-                    data: { datasets: [
-                        { label: 'Сон', data: sleepPoints, backgroundColor: '#9b59b6', pointRadius: 10, pointStyle: 'rectRounded' },
-                        { label: 'Прогулянка', data: walkPoints, backgroundColor: '#3498db', pointRadius: 10, pointStyle: 'rectRounded' },
-                        { label: 'Годування', data: feedPoints, backgroundColor: '#f39c12', pointRadius: 8, pointStyle: 'circle' },
-                        { label: 'Туалет', data: toiletPoints, backgroundColor: '#2ecc71', pointRadius: 8, pointStyle: 'circle' },
-                        { label: 'Поведінка', data: behaviorPoints, backgroundColor: '#e74c3c', pointRadius: 8, pointStyle: 'triangle' }
-                    ]},
-                    options: {
-                        responsive: true,
-                        scales: { x: { title: { display: true, text: 'Година дня' }, min: 0, max: 24, ticks: { stepSize: 2, callback: v => Math.floor(v) + ':00' } }, y: { display: false } }
+                renderTimelineSVG(data.events);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderTimelineSVG(events) {
+            const container = document.getElementById('timelineContainer');
+            const W = container.clientWidth || 340;
+            const H = 320;
+            const LEFT = 52, RIGHT = 12, TOP = 24, ROW_H = 44, TICK_H = 20;
+            const chartW = W - LEFT - RIGHT;
+
+            const rows = [
+                { key: 'sleep',    label: '😴 Сон',        color: '#9b59b6', light: '#e8d5f5', hasBar: true },
+                { key: 'walk',     label: '🚶 Прогулянка', color: '#3498db', light: '#d5eaf7', hasBar: true },
+                { key: 'feed',     label: '🍖 Годування',  color: '#f39c12', light: '#fef3d5', hasBar: false },
+                { key: 'toilet',   label: '🚽 Туалет',     color: '#2ecc71', light: '#d5f5e3', hasBar: false },
+                { key: 'behavior', label: '⚠️ Поведінка',  color: '#e74c3c', light: '#fde8e8', hasBar: false }
+            ];
+
+            // Hours to display: 5:00–24:00
+            const HOUR_START = 5, HOUR_END = 24;
+            const HOURS = HOUR_END - HOUR_START;
+            const toX = h => LEFT + ((h - HOUR_START) / HOURS) * chartW;
+
+            let svgRows = '';
+
+            // Hour grid lines & labels
+            let gridLines = '', hourLabels = '';
+            for (let h = HOUR_START; h <= HOUR_END; h += 2) {
+                const x = toX(h);
+                gridLines += `<line x1="${x}" y1="${TOP}" x2="${x}" y2="${TOP + rows.length * ROW_H}" stroke="#e8e8e8" stroke-width="1"/>`;
+                hourLabels += `<text x="${x}" y="${TOP + rows.length * ROW_H + TICK_H}" text-anchor="middle" font-size="10" fill="#aaa">${String(h).padStart(2,'0')}:00</text>`;
+            }
+
+            // Row backgrounds & labels
+            rows.forEach((row, i) => {
+                const y = TOP + i * ROW_H;
+                svgRows += `<rect x="${LEFT}" y="${y + 4}" width="${chartW}" height="${ROW_H - 8}" rx="6" fill="${row.light}" opacity="0.5"/>`;
+                // Row label
+                const emoji = row.label.split(' ')[0];
+                const txt = row.label.split(' ').slice(1).join(' ');
+                svgRows += `<text x="${LEFT - 4}" y="${y + ROW_H/2 + 4}" text-anchor="end" font-size="10" fill="#666">${emoji}</text>`;
+            });
+
+            // Events
+            const MIN_BAR_W = 10;
+            const BAR_H = ROW_H - 20;
+            rows.forEach((row, i) => {
+                const y = TOP + i * ROW_H + (ROW_H - BAR_H) / 2;
+                const evs = events.filter(e => e.type === row.key);
+
+                evs.forEach(e => {
+                    const startH = e.hour + e.minute / 60;
+                    const x = toX(startH);
+                    const timeLabel = `${String(e.hour).padStart(2,'0')}:${String(e.minute).padStart(2,'0')}`;
+
+                    if (row.hasBar && e.duration > 0) {
+                        const durH = e.duration / 3600;
+                        const barW = Math.max(MIN_BAR_W, (durH / HOURS) * chartW);
+                        const durText = e.duration >= 3600 ? `${(e.duration/3600).toFixed(1)}г` : `${Math.round(e.duration/60)}хв`;
+                        svgRows += `<rect x="${x}" y="${y}" width="${barW}" height="${BAR_H}" rx="4" fill="${row.color}" opacity="0.9"/>`;
+                        if (barW > 30) {
+                            svgRows += `<text x="${x + barW/2}" y="${y + BAR_H/2 + 4}" text-anchor="middle" font-size="9" fill="white" font-weight="600">${durText}</text>`;
+                        }
+                        // Tooltip line at start
+                        svgRows += `<line x1="${x}" y1="${y - 2}" x2="${x}" y2="${TOP + rows.length * ROW_H + 2}" stroke="${row.color}" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>`;
+                        svgRows += `<text x="${x + 2}" y="${y - 4}" font-size="8" fill="${row.color}" font-weight="600">${timeLabel}</text>`;
+                    } else {
+                        // Pin marker
+                        const r = 6;
+                        svgRows += `<circle cx="${x}" cy="${y + BAR_H/2}" r="${r}" fill="${row.color}" opacity="0.9"/>`;
+                        svgRows += `<line x1="${x}" y1="${y + BAR_H/2 - r}" x2="${x}" y2="${y - 4}" stroke="${row.color}" stroke-width="1" opacity="0.5"/>`;
+                        svgRows += `<text x="${x}" y="${y - 6}" text-anchor="middle" font-size="8" fill="${row.color}" font-weight="600">${timeLabel}</text>`;
                     }
                 });
-            } catch(e) { console.error(e); }
+            });
+
+            // "Now" line
+            const now = new Date();
+            const nowH = now.getHours() + now.getMinutes() / 60;
+            if (nowH >= HOUR_START && nowH <= HOUR_END) {
+                const nx = toX(nowH);
+                svgRows += `<line x1="${nx}" y1="${TOP}" x2="${nx}" y2="${TOP + rows.length * ROW_H}" stroke="#e74c3c" stroke-width="2" stroke-dasharray="4,3"/>`;
+                svgRows += `<text x="${nx}" y="${TOP - 6}" text-anchor="middle" font-size="9" fill="#e74c3c" font-weight="700">зараз</text>`;
+            }
+
+            container.innerHTML = `<svg class="timeline-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+                ${gridLines}
+                ${svgRows}
+                ${hourLabels}
+            </svg>`;
         }
 
         async function loadEventsFeed() {
@@ -755,14 +822,23 @@
             } catch(e) { console.error(e); }
         }
 
-        function showReminderModal() { document.getElementById('reminderModal').style.display = 'flex'; }
+        function showReminderModal() {
+            document.getElementById('reminderTitle').value = '';
+            document.getElementById('reminderDesc').value = '';
+            document.getElementById('reminderInterval').value = '';
+            document.getElementById('reminderTime').value = '09:00';
+            document.getElementById('reminderModal').style.display = 'flex';
+        }
         async function saveReminder() {
-            const title = document.getElementById('reminderTitle').value;
+            const title = document.getElementById('reminderTitle').value.trim();
             const interval = document.getElementById('reminderInterval').value;
             if (!title || !interval) { showToast('❌ Заповніть назву та інтервал'); return; }
-            const res = await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description: document.getElementById('reminderDesc').value, interval_days: parseInt(interval), reminder_time: document.getElementById('reminderTime').value }) });
-            if (res.ok) { showToast('💊 Додано'); closeModal('reminderModal'); loadHealthData(); }
-            else showToast('❌ Помилка');
+            try {
+                const res = await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description: document.getElementById('reminderDesc').value, interval_days: parseInt(interval), reminder_time: document.getElementById('reminderTime').value }) });
+                const d = await res.json();
+                if (d.success) { showToast('💊 Нагадування додано!'); closeModal('reminderModal'); loadHealthData(); }
+                else showToast('❌ Помилка збереження');
+            } catch(e) { showToast('❌ Помилка: ' + e.message); }
         }
 
         async function completeReminder(id) {

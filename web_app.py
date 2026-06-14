@@ -441,11 +441,16 @@ def api_health():
 def api_add_reminder():
     try:
         data = request.get_json()
-        db.add_medical_reminder(data['title'], data.get('description', ''), data['interval_days'], data.get('reminder_time', '09:00'))
+        if not data or not data.get('title') or not data.get('interval_days'):
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+        interval = int(data['interval_days'])
+        if interval <= 0:
+            return jsonify({'success': False, 'error': 'interval_days must be positive'})
+        db.add_medical_reminder(data['title'], data.get('description', ''), interval, data.get('reminder_time', '09:00'))
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Add reminder error: {e}")
-        return jsonify({'success': False})
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @app.route('/api/complete_reminder', methods=['POST'])
@@ -745,7 +750,7 @@ def api_group_chats():
 def run_web():
     port = int(os.getenv('WEB_PORT', 5010))
     print(f"🌐 Веб-сервер: http://localhost:{port}")
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=False)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
 
 
 if __name__ == '__main__':
