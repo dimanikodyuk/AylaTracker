@@ -47,11 +47,6 @@ def main():
         from web_app import run_web
         from simple_bot import run_bot
 
-        # Перевірка наявності бази даних
-        import database as db
-        db.init_db()
-        logger.info("✅ База даних ініціалізована")
-
         # Запуск веб-сервера в окремому потоці
         web_thread = threading.Thread(target=run_web, daemon=True)
         web_thread.start()
