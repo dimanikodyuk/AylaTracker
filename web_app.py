@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Ayla Tracker - Web Dashboard (оновлена версія)
+Ayla Tracker - Web Dashboard (оновлена версія з покращеними звітами)
 """
 
 from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime, timedelta
 import os
+import io
 import time
 from dotenv import load_dotenv
 import requests
@@ -49,18 +50,267 @@ def serve_static(filename):
     return send_from_directory(CURRENT_DIR, filename)
 
 
-def send_telegram(message, chat_id=None):
+def send_telegram(message, chat_id=None, parse_mode='HTML'):
     token = db.get_setting('telegram_bot_token', TELEGRAM_BOT_TOKEN)
     target_chat = chat_id or db.get_setting('telegram_chat_id', TELEGRAM_CHAT_ID)
     if not token or not target_chat:
         return False
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        requests.post(url, json={'chat_id': target_chat, 'text': message, 'parse_mode': 'HTML'}, timeout=10)
+        requests.post(url, json={'chat_id': target_chat, 'text': message, 'parse_mode': parse_mode}, timeout=10)
         return True
     except Exception as e:
         logger.error(f"Telegram error: {e}")
         return False
+
+
+def send_telegram_photo(photo_bytes, caption, chat_id=None):
+    token = db.get_setting('telegram_bot_token', TELEGRAM_BOT_TOKEN)
+    target_chat = chat_id or db.get_setting('telegram_chat_id', TELEGRAM_CHAT_ID)
+    if not token or not target_chat:
+        return False
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+        requests.post(url, data={'chat_id': target_chat, 'caption': caption, 'parse_mode': 'HTML'},
+                      files={'photo': ('chart.png', photo_bytes, 'image/png')}, timeout=15)
+        return True
+    except Exception as e:
+        logger.error(f"Telegram photo error: {e}")
+        return False
+
+
+def make_bar(value, max_val, width=12, fill='█', empty='░'):
+    """ASCII прогрес-бар"""
+    if max_val == 0:
+        filled = 0
+    else:
+        filled = int((value / max_val) * width)
+    filled = max(0, min(width, filled))
+    return fill * filled + empty * (width - filled)
+
+
+def generate_weekly_chart(weekly_data):
+    """Генерує PNG з тижневим графіком через matplotlib"""
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        dates = weekly_data.get('dates', [])
+        walk = weekly_data.get('walk', [])
+        sleep = weekly_data.get('sleep', [])
+
+        if not dates:
+            return None
+
+        short_dates = []
+        for d in dates:
+            try:
+                dt = datetime.strptime(d, '%Y-%m-%d')
+                short_dates.append(dt.strftime('%d.%m'))
+            except:
+                short_dates.append(d)
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 5), facecolor='#f5f5f7')
+        fig.suptitle('🐾 Айла — статистика тижня', fontsize=14, fontweight='bold', color='#333', y=0.98)
+
+        x = np.arange(len(short_dates))
+        w = 0.6
+
+        # Walk bars
+        ax1.bar(x, walk, width=w, color='#3498db', alpha=0.85, zorder=3)
+        ax1.set_facecolor('#f0f4f8')
+        ax1.set_ylabel('хв', color='#3498db', fontsize=9)
+        ax1.set_title('🚶 Прогулянки (хв/день)', fontsize=10, color='#333', pad=4)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(short_dates, fontsize=9)
+        ax1.grid(axis='y', linestyle='--', alpha=0.5, zorder=0)
+        ax1.tick_params(colors='#555')
+        for i, v in enumerate(walk):
+            if v > 0:
+                ax1.text(i, v + 0.5, str(int(v)), ha='center', va='bottom', fontsize=8, color='#2980b9', fontweight='bold')
+        ax1.spines['top'].set_visible(False)
+        ax1.spines['right'].set_visible(False)
+
+        # Sleep bars
+        ax2.bar(x, sleep, width=w, color='#9b59b6', alpha=0.85, zorder=3)
+        ax2.set_facecolor('#f4f0f8')
+        ax2.set_ylabel('год', color='#9b59b6', fontsize=9)
+        ax2.set_title('😴 Сон (год/день)', fontsize=10, color='#333', pad=4)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(short_dates, fontsize=9)
+        ax2.grid(axis='y', linestyle='--', alpha=0.5, zorder=0)
+        ax2.tick_params(colors='#555')
+        for i, v in enumerate(sleep):
+            if v > 0:
+                ax2.text(i, v + 0.2, f'{v:.1f}', ha='center', va='bottom', fontsize=8, color='#8e44ad', fontweight='bold')
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['right'].set_visible(False)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor='#f5f5f7')
+        buf.seek(0)
+        plt.close(fig)
+        return buf.read()
+    except Exception as e:
+        logger.error(f"Chart generation error: {e}")
+        return None
+
+
+def build_daily_report_text(date_str, events, pet_name='Айла'):
+    """Формує красивий текст денного звіту"""
+    feed_events = [e for e in events if e['type'] == 'feed']
+    walk_events = [e for e in events if e['type'] == 'walk']
+    sleep_events = [e for e in events if e['type'] == 'sleep']
+    toilet_events = [e for e in events if e['type'] == 'toilet']
+    behavior_events = [e for e in events if e['type'] == 'behavior']
+    training_events = [e for e in events if e['type'] == 'training']
+    mental_events = [e for e in events if e['type'] == 'mental']
+
+    walk_min = sum(e['value'] for e in walk_events if e['value']) // 60
+    sleep_hrs = sum(e['value'] for e in sleep_events if e['value']) / 3600
+    pee = len([e for e in toilet_events if e.get('subtype') == 'піся'])
+    poop = len([e for e in toilet_events if e.get('subtype') == 'кака'])
+
+    try:
+        dt = datetime.strptime(date_str, '%Y-%m-%d')
+        day_ua = ['Понеділок','Вівторок','Середа','Четвер','П\'ятниця','Субота','Неділя'][dt.weekday()]
+        date_pretty = f"{dt.strftime('%d.%m.%Y')} ({day_ua})"
+    except:
+        date_pretty = date_str
+
+    # Оцінка дня
+    score = 0
+    if len(feed_events) >= 3: score += 2
+    if walk_min >= 20: score += 2
+    if walk_min >= 40: score += 1
+    if sleep_hrs >= 10: score += 2
+    if not behavior_events: score += 2
+    if training_events: score += 1
+
+    mood_emoji = '🌟' if score >= 8 else ('😊' if score >= 5 else '😐')
+
+    lines = [
+        f"🐾 <b>{pet_name} — Денний звіт</b>",
+        f"📅 {date_pretty}  {mood_emoji}",
+        "",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "",
+        f"🍖 <b>Годування</b>: {len(feed_events)} раз(и)",
+    ]
+
+    if feed_events:
+        times = []
+        for e in feed_events:
+            dt2 = datetime.fromtimestamp(e['timestamp'])
+            times.append(dt2.strftime('%H:%M'))
+        lines.append(f"   ⏰ о {', '.join(times)}")
+
+    lines += [
+        "",
+        f"🚶 <b>Прогулянки</b>: {walk_min} хв  {make_bar(walk_min, 60)}",
+    ]
+    if walk_events:
+        for e in walk_events:
+            dt2 = datetime.fromtimestamp(e['timestamp'])
+            dur = (e['value'] or 0) // 60
+            lines.append(f"   • {dt2.strftime('%H:%M')} — {dur} хв")
+
+    lines += [
+        "",
+        f"😴 <b>Сон</b>: {sleep_hrs:.1f} год  {make_bar(sleep_hrs, 16)}",
+    ]
+    if sleep_events:
+        for e in sleep_events:
+            dt2 = datetime.fromtimestamp(e['timestamp'])
+            dur = (e['value'] or 0) / 3600
+            lines.append(f"   • {dt2.strftime('%H:%M')} — {dur:.1f} год")
+
+    lines += [
+        "",
+        f"🚽 <b>Туалет</b>: 💧 Піся ×{pee}   💩 Кака ×{poop}",
+    ]
+
+    if training_events:
+        lines += ["", f"🏋️ <b>Тренування</b>: {len(training_events)} сесій"]
+
+    if mental_events:
+        total_mental = sum(e.get('duration', 0) for e in mental_events)
+        lines += ["", f"🧠 <b>Ментальна активність</b>: {total_mental} хв"]
+
+    if behavior_events:
+        lines += ["", f"⚠️ <b>Поведінка</b>: {len(behavior_events)} інцидент(ів)"]
+        for e in behavior_events:
+            lines.append(f"   • {e.get('subtype', 'Погана поведінка')}")
+    else:
+        lines += ["", "✅ <b>Поведінка</b>: без зауважень"]
+
+    lines += [
+        "",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"<i>Оцінка дня: {score}/10 {mood_emoji}</i>"
+    ]
+
+    return "\n".join(lines)
+
+
+def build_weekly_report_text(report, pet_name='Айла'):
+    """Формує красивий текст тижневого звіту"""
+    walk_min = report.get('walk_seconds', 0) // 60
+    sleep_hrs = report.get('sleep_seconds', 0) / 3600
+    avg_walk = walk_min / 7
+    avg_sleep = sleep_hrs / 7
+    avg_feed = report.get('feed', 0) / 7
+
+    lines = [
+        f"🐾 <b>{pet_name} — Тижневий звіт</b>",
+        f"📅 Останні 7 днів",
+        "",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "",
+        f"🍖 <b>Годування</b>",
+        f"   Всього: {report.get('feed', 0)} раз  |  В середньому: {avg_feed:.1f}/день",
+        "",
+        f"🚶 <b>Прогулянки</b>",
+        f"   Всього: {walk_min} хв  |  В середньому: {avg_walk:.0f} хв/день",
+        f"   {make_bar(avg_walk, 60, 14)}",
+        "",
+        f"😴 <b>Сон</b>",
+        f"   Всього: {sleep_hrs:.1f} год  |  В середньому: {avg_sleep:.1f} год/день",
+        f"   {make_bar(avg_sleep, 16, 14)}",
+        "",
+        f"🚽 <b>Туалет</b>: {report.get('toilet', 0)} разів за тиждень",
+        "",
+    ]
+
+    if report.get('training_count', 0) > 0:
+        lines += [
+            f"🏋️ <b>Тренування</b>: {report['training_count']} сесій",
+            f"   Середній успіх: {report.get('training_avg', 0)}/5",
+            "",
+        ]
+
+    if report.get('mental_minutes', 0) > 0:
+        lines += [f"🧠 <b>Ментальна активність</b>: {report['mental_minutes']} хв за тиждень", ""]
+
+    behavior = report.get('behavior', 0)
+    if behavior == 0:
+        lines.append("✅ <b>Поведінка</b>: чудовий тиждень, без інцидентів!")
+    elif behavior <= 3:
+        lines.append(f"⚠️ <b>Поведінка</b>: {behavior} інцидент(ів) — є над чим попрацювати")
+    else:
+        lines.append(f"❌ <b>Поведінка</b>: {behavior} інцидент(ів) — потрібна увага")
+
+    lines += [
+        "",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "<i>📊 Графік прогулянок і сну — вище ⬆️</i>"
+    ]
+
+    return "\n".join(lines)
 
 
 # ========== ОСНОВНІ API ==========
@@ -444,7 +694,6 @@ def api_add_reminder():
         if not data or not data.get('title'):
             return jsonify({'success': False, 'error': 'Missing title'})
         interval = int(data['interval_days']) if data.get('interval_days') else 0
-        # interval може бути 0 (одноразове) або більше
         db.add_medical_reminder(data['title'], data.get('description', ''), interval, data.get('reminder_time', '09:00'))
         return jsonify({'success': True})
     except Exception as e:
@@ -586,28 +835,54 @@ def api_report_week():
 
 @app.route('/api/send_report', methods=['POST'])
 def api_send_report():
+    """Надсилання тижневого звіту з графіком"""
     try:
+        pet_name = db.get_setting('pet_name', 'Айла')
         report = db.get_full_report(7)
-        msg = f"🐾 <b>Звіт Айли за тиждень</b>\n\n📊 Статистика:\n🍖 Годувань: {report['feed']}\n🚶 Прогулянок: {report['walk_minutes']} хв\n😴 Сну: {report['sleep_hours']} год\n🚽 Туалет: {report['toilet']}\n⚠️ Поведінка: {report['behavior']}\n🧠 Ментальне: {report['mental_minutes']} хв\n🏋️ Тренувань: {report['training_count']} (усп. {report['training_avg']}/5)"
-        send_telegram(msg)
-        for group in db.get_group_chats():
-            send_telegram(msg, group['chat_id'])
-        return jsonify({'message': '✅ Звіт надіслано!'})
+        weekly_data = db.get_weekly_chart_data()
+
+        text = build_weekly_report_text(report, pet_name)
+
+        # Генеруємо графік
+        chart_bytes = generate_weekly_chart(weekly_data)
+
+        recipients = [None] + [g['chat_id'] for g in db.get_group_chats()]
+        success_count = 0
+
+        for chat_id in recipients:
+            if chat_id is None and not db.get_setting('telegram_chat_id'):
+                continue
+            if chart_bytes:
+                if send_telegram_photo(chart_bytes, text, chat_id):
+                    success_count += 1
+            else:
+                if send_telegram(text, chat_id):
+                    success_count += 1
+
+        return jsonify({'message': f'✅ Звіт надіслано {success_count} отримувачам!'})
     except Exception as e:
-        return jsonify({'message': '❌ Помилка'})
+        logger.error(f"Send report error: {e}")
+        return jsonify({'message': '❌ Помилка надсилання'})
 
 
 @app.route('/api/send_daily_report', methods=['POST'])
 def api_send_daily_report():
+    """Надсилання денного звіту"""
     try:
         data = request.get_json()
         date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        pet_name = db.get_setting('pet_name', 'Айла')
         events = db.get_events_by_date_range(date, date)
-        msg = f"📅 <b>Звіт за {date}</b>\n\n🍖 Годувань: {len([e for e in events if e['type'] == 'feed'])}\n🚶 Прогулянок: {sum([e['value'] for e in events if e['type'] == 'walk']) // 60} хв\n😴 Сну: {sum([e['value'] for e in events if e['type'] == 'sleep']) // 3600} год\n🚽 Туалет: {len([e for e in events if e['type'] == 'toilet'])}\n⚠️ Поведінка: {len([e for e in events if e['type'] == 'behavior'])}"
-        send_telegram(msg, data.get('chat_id'))
-        return jsonify({'message': '✅ Звіт надіслано!'})
+
+        text = build_daily_report_text(date, events, pet_name)
+        chat_id = data.get('chat_id')
+
+        if send_telegram(text, chat_id):
+            return jsonify({'message': '✅ Денний звіт надіслано!'})
+        return jsonify({'message': '❌ Помилка надсилання'})
     except Exception as e:
-        return jsonify({'message': '❌ Помилка'})
+        logger.error(f"Send daily report error: {e}")
+        return jsonify({'message': '❌ Помилка надсилання'})
 
 
 # ========== ІНШІ API ==========

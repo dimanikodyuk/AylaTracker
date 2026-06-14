@@ -453,6 +453,17 @@
             if (modal) modal.style.display = 'none';
         }
 
+        // Функція для форматування локальної дати з timestamp
+        function formatLocalDatetime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
         function switchTab(tabName, btnElement) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${tabName}`)?.classList.add('active');
@@ -553,14 +564,11 @@
                 { key: 'behavior', label: '⚠️ Поведінка',  color: '#e74c3c', light: '#fde8e8', hasBar: false }
             ];
 
-            // Hours to display: 5:00–24:00
             const HOUR_START = 5, HOUR_END = 24;
             const HOURS = HOUR_END - HOUR_START;
             const toX = h => LEFT + ((h - HOUR_START) / HOURS) * chartW;
 
             let svgRows = '';
-
-            // Hour grid lines & labels
             let gridLines = '', hourLabels = '';
             for (let h = HOUR_START; h <= HOUR_END; h += 2) {
                 const x = toX(h);
@@ -568,17 +576,13 @@
                 hourLabels += `<text x="${x}" y="${TOP + rows.length * ROW_H + TICK_H}" text-anchor="middle" font-size="10" fill="#aaa">${String(h).padStart(2,'0')}:00</text>`;
             }
 
-            // Row backgrounds & labels
             rows.forEach((row, i) => {
                 const y = TOP + i * ROW_H;
                 svgRows += `<rect x="${LEFT}" y="${y + 4}" width="${chartW}" height="${ROW_H - 8}" rx="6" fill="${row.light}" opacity="0.5"/>`;
-                // Row label
                 const emoji = row.label.split(' ')[0];
-                const txt = row.label.split(' ').slice(1).join(' ');
                 svgRows += `<text x="${LEFT - 4}" y="${y + ROW_H/2 + 4}" text-anchor="end" font-size="10" fill="#666">${emoji}</text>`;
             });
 
-            // Events
             const MIN_BAR_W = 10;
             const BAR_H = ROW_H - 20;
             rows.forEach((row, i) => {
@@ -598,11 +602,9 @@
                         if (barW > 30) {
                             svgRows += `<text x="${x + barW/2}" y="${y + BAR_H/2 + 4}" text-anchor="middle" font-size="9" fill="white" font-weight="600">${durText}</text>`;
                         }
-                        // Tooltip line at start
                         svgRows += `<line x1="${x}" y1="${y - 2}" x2="${x}" y2="${TOP + rows.length * ROW_H + 2}" stroke="${row.color}" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>`;
                         svgRows += `<text x="${x + 2}" y="${y - 4}" font-size="8" fill="${row.color}" font-weight="600">${timeLabel}</text>`;
                     } else {
-                        // Pin marker
                         const r = 6;
                         svgRows += `<circle cx="${x}" cy="${y + BAR_H/2}" r="${r}" fill="${row.color}" opacity="0.9"/>`;
                         svgRows += `<line x1="${x}" y1="${y + BAR_H/2 - r}" x2="${x}" y2="${y - 4}" stroke="${row.color}" stroke-width="1" opacity="0.5"/>`;
@@ -611,7 +613,6 @@
                 });
             });
 
-            // "Now" line
             const now = new Date();
             const nowH = now.getHours() + now.getMinutes() / 60;
             if (nowH >= HOUR_START && nowH <= HOUR_END) {
@@ -650,10 +651,11 @@
             }
         }
 
+        // ВИПРАВЛЕНО: використовуємо formatLocalDatetime замість toISOString
         async function editEvent(eventId, eventType, eventSubtype, eventTimestamp, eventValue, eventNote) {
             document.getElementById('editEventId').value = eventId;
             document.getElementById('editEventType').value = eventType;
-            document.getElementById('editEventDatetime').value = new Date(eventTimestamp * 1000).toISOString().slice(0, 16);
+            document.getElementById('editEventDatetime').value = formatLocalDatetime(eventTimestamp);
             document.getElementById('editEventNote').value = eventNote || '';
             let extraHtml = '';
             if (eventType === 'feed') extraHtml = `<label>🍖 Кількість (г)</label><input type="number" id="editEventValue" value="${eventValue || ''}">`;
@@ -717,10 +719,24 @@
             } catch(e) { console.error(e); }
         }
 
+        // ВИПРАВЛЕНО: конвертуємо дату правильно
         function editWeight(id, weight, date) {
             document.getElementById('editWeightId').value = id;
             document.getElementById('editWeightValue').value = weight;
-            document.getElementById('editWeightDatetime').value = date.replace(' ', 'T');
+            const dateObj = new Date(date);
+            if (!isNaN(dateObj.getTime())) {
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const hours = String(dateObj.getHours()).padStart(2, '0');
+                const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                document.getElementById('editWeightDatetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            } else {
+                const parts = date.split(' ');
+                if (parts.length >= 2) {
+                    document.getElementById('editWeightDatetime').value = `${parts[0]}T${parts[1]}`;
+                }
+            }
             document.getElementById('editWeightModal').style.display = 'flex';
         }
 
@@ -752,6 +768,7 @@
             } catch(e) { console.error(e); }
         }
 
+        // ВИПРАВЛЕНО: правильна конвертація дати для замірів
         function editMeasurement(id, neck, chest, waist, length, height, note, date) {
             document.getElementById('editMeasurementId').value = id;
             document.getElementById('editNeckCm').value = neck || '';
@@ -760,7 +777,20 @@
             document.getElementById('editLengthCm').value = length || '';
             document.getElementById('editHeightCm').value = height || '';
             document.getElementById('editMeasurementNote').value = note || '';
-            document.getElementById('editMeasurementDatetime').value = date.replace(' ', 'T');
+            const dateObj = new Date(date);
+            if (!isNaN(dateObj.getTime())) {
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const hours = String(dateObj.getHours()).padStart(2, '0');
+                const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                document.getElementById('editMeasurementDatetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            } else {
+                const parts = date.split(' ');
+                if (parts.length >= 2) {
+                    document.getElementById('editMeasurementDatetime').value = `${parts[0]}T${parts[1]}`;
+                }
+            }
             document.getElementById('editMeasurementModal').style.display = 'flex';
         }
 

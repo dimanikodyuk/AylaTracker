@@ -442,9 +442,9 @@ def send_potty_reminder(chat_id):
 
 
 def check_reminders_loop(bot):
-    """Фонова перевірка нагадувань (кожні 5 хвилин)"""
+    """Фонова перевірка нагадувань (кожну 1 хвилину)"""
     while True:
-        time.sleep(300)  # Перевіряємо кожні 5 хвилин (не годину)
+        time.sleep(60)  # Перевіряємо кожну хвилину (не годину)
         try:
             due_reminders = db.get_due_medical_reminders()
             for r in due_reminders:
