@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from contextlib import contextmanager
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 DB_PATH = "ayla.db"
@@ -41,11 +40,43 @@ def get_db():
             conn.close()
 
 
+def migrate_db():
+    """Міграція бази даних - додавання нових колонок"""
+    with get_db() as conn:
+        # Перевіряємо таблицю medical_reminders
+        cursor = conn.execute("PRAGMA table_info(medical_reminders)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'reminder_time' not in columns:
+            conn.execute("ALTER TABLE medical_reminders ADD COLUMN reminder_time TEXT DEFAULT '09:00'")
+            logger.info("✅ Додано колонку reminder_time до medical_reminders")
+
+        if 'last_triggered' not in columns:
+            conn.execute("ALTER TABLE medical_reminders ADD COLUMN last_triggered INTEGER DEFAULT 0")
+            logger.info("✅ Додано колонку last_triggered до medical_reminders")
+
+        # Перевіряємо таблицю body_measurements
+        cursor = conn.execute("PRAGMA table_info(body_measurements)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'note' not in columns:
+            conn.execute("ALTER TABLE body_measurements ADD COLUMN note TEXT")
+            logger.info("✅ Додано колонку note до body_measurements")
+
+        # Перевіряємо таблицю allowed_users
+        cursor = conn.execute("PRAGMA table_info(allowed_users)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'role' not in columns:
+            conn.execute("ALTER TABLE allowed_users ADD COLUMN role TEXT DEFAULT 'user'")
+            logger.info("✅ Додано колонку role до allowed_users")
+
+        logger.info("✅ Міграцію БД завершено")
+
+
 def init_db():
     """Ініціалізація бази даних"""
     with get_db() as conn:
-        conn.execute("DROP TABLE IF EXISTS active_sessions")
-
         conn.executescript('''
             -- Таблиця подій
             CREATE TABLE IF NOT EXISTS events (
@@ -337,9 +368,16 @@ def init_db():
         behavior_defaults = [("Кусається", "🦷", 3), ("Гавкає", "🗣️", 2), ("Гризе меблі", "🪑", 3),
                              ("Стрибає на людей", "🦘", 2), ("Тягне повідок", "🪢", 2), ("Погана поведінка", "⚠️", 1)]
         for name, icon, severity in behavior_defaults:
-            conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)', (name, icon, severity))
+            conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)',
+                         (name, icon, severity))
 
-        print("✅ База даних ініціалізована")
+        # ВАЖЛИВО: Виконуємо міграцію після створення таблиць
+        # (але не в цьому з'єднанні, бо воно вже в транзакції)
+
+    # Виконуємо міграцію окремим з'єднанням
+    migrate_db()
+
+    print("✅ База даних ініціалізована")
 
 
 def get_setting(key, default=None):
@@ -352,6 +390,11 @@ def set_setting(key, value):
     with get_db() as conn:
         conn.execute('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
                      (key, value, int(time.time())))
+
+
+def get_pet_name():
+    """Отримати ім'я улюбленця"""
+    return get_setting('pet_name', 'Айла')
 
 
 def get_pet_age_months():
@@ -369,22 +412,26 @@ def get_pet_age_months():
 
 def get_safe_walk_duration_minutes():
     months = get_pet_age_months()
-    return months * 5
+    # Безпечна тривалість прогулянки: 5 хв на місяць життя, але не більше 120 хв
+    return min(months * 5, 120)
 
 
-def calculate_daily_food_amount(weight_kg, activity_factor=1.6):
+def calculate_daily_food_amount(weight_kg, activity_factor=None):
     """
     Розрахунок добової норми корму за формулою RER
     RER = 70 * (weight_kg)^0.75
-    activity_factor:
-    - 1.2: стерилізована/кастрована доросла собака
-    - 1.6: активна доросла собака
-    - 2.0: цуценя (до 4 місяців)
-    - 1.8: цуценя (4-12 місяців)
-    - 3.0: дуже активна собака
     """
     if not weight_kg or weight_kg <= 0:
         weight_kg = 5
+
+    # Визначення фактору активності на основі віку
+    months = get_pet_age_months()
+    if months < 4:
+        activity_factor = 2.0  # цуценя до 4 місяців
+    elif months < 12:
+        activity_factor = 1.8  # цуценя 4-12 місяців
+    else:
+        activity_factor = 1.6  # активна доросла собака
 
     # RER формула
     rer = 70 * (weight_kg ** 0.75)
@@ -392,13 +439,6 @@ def calculate_daily_food_amount(weight_kg, activity_factor=1.6):
 
     food_density = float(get_setting('food_density_calories', 3800))
     daily_grams = (daily_calories / food_density) * 1000
-
-    # Віковий коефіцієнт
-    months = get_pet_age_months()
-    if months < 4:
-        daily_grams *= 2
-    elif months < 12:
-        daily_grams *= 1.8
 
     return max(50, min(800, int(daily_grams)))
 
@@ -510,11 +550,19 @@ def stop_session(session_type):
 def get_today_stats():
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
-        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        walk = conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
-        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        sleep = conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
-        behavior = conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        feed = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        walk = \
+        conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[
+            0] or 0
+        toilet = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        sleep = \
+        conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[
+            0] or 0
+        behavior = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (today_start,)).fetchone()[
+            0]
         return {
             'feed': feed,
             'walk_minutes': walk // 60,
@@ -674,7 +722,8 @@ def get_training_stats():
             SELECT command, COUNT(*) as count, AVG(success_rate) as avg_success
             FROM training_logs GROUP BY command
         """).fetchall()
-        return [{'command': r['command'], 'count': r['count'], 'avg_success': round(r['avg_success'], 1)} for r in stats]
+        return [{'command': r['command'], 'count': r['count'], 'avg_success': round(r['avg_success'], 1)} for r in
+                stats]
 
 
 def get_training_history(limit=50):
@@ -776,7 +825,8 @@ def add_mental_type(name, icon='🧠'):
 
 def get_behavior_types():
     with get_db() as conn:
-        rows = conn.execute("SELECT id, name, icon, severity FROM behavior_types ORDER BY severity DESC, name").fetchall()
+        rows = conn.execute(
+            "SELECT id, name, icon, severity FROM behavior_types ORDER BY severity DESC, name").fetchall()
         return [dict(r) for r in rows]
 
 
@@ -799,53 +849,24 @@ def get_potty_stats():
 
 def add_medical_reminder(title, description, interval_days, reminder_time='09:00'):
     with get_db() as conn:
-        cursor = conn.execute("PRAGMA table_info(medical_reminders)")
-        columns = [col[1] for col in cursor.fetchall()]
-
         now = datetime.now()
+        reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
 
-        # Розбираємо час нагадування
-        try:
-            reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
-        except:
-            reminder_hour, reminder_minute = 9, 0
-
-        # Створюємо datetime для наступного нагадування на сьогодні
+        # Створюємо datetime для наступного нагадування
         next_due_date = datetime(now.year, now.month, now.day, reminder_hour, reminder_minute, 0)
 
-        # Якщо час вже минув сьогодні, додаємо інтервал днів
-        # АЛЕ: якщо interval_days = 0, то додаємо 1 день тільки якщо час минув
-        if interval_days == 0:
-            # Одноразове нагадування - якщо час минув, ставимо на завтра
-            if next_due_date <= now:
-                next_due_date += timedelta(days=1)
-        else:
-            # Періодичне нагадування: ставимо на сьогодні якщо час ще не минув,
-            # інакше на завтра, а потім додаємо interval_days
-            if next_due_date <= now:
-                next_due_date += timedelta(days=1)
+        if next_due_date <= now:
+            next_due_date += timedelta(days=1)
+
+        if interval_days > 0:
             next_due_date += timedelta(days=interval_days)
 
         next_due = int(next_due_date.timestamp())
 
-        print(
-            f"Додавання нагадування: {title}, час {reminder_time}, next_due={next_due_date.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        if 'reminder_time' in columns and 'last_triggered' in columns:
-            conn.execute("""
-                INSERT INTO medical_reminders (title, description, interval_days, reminder_time, last_triggered, next_due, enabled)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
-            """, (title, description, interval_days, reminder_time, int(now.timestamp()), next_due))
-        elif 'reminder_time' in columns:
-            conn.execute("""
-                INSERT INTO medical_reminders (title, description, interval_days, reminder_time, next_due, enabled)
-                VALUES (?, ?, ?, ?, ?, 1)
-            """, (title, description, interval_days, reminder_time, next_due))
-        else:
-            conn.execute("""
-                INSERT INTO medical_reminders (title, description, interval_days, next_due, enabled)
-                VALUES (?, ?, ?, ?, 1)
-            """, (title, description, interval_days, next_due))
+        conn.execute("""
+            INSERT INTO medical_reminders (title, description, interval_days, reminder_time, last_triggered, next_due, enabled)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        """, (title, description, interval_days, reminder_time, int(now.timestamp()), next_due))
 
         return True
 
@@ -866,9 +887,7 @@ def get_medical_reminders():
 def get_due_medical_reminders():
     """Отримати нагадування, які мають бути виконані (сьогодні або раніше)"""
     now = int(time.time())
-    today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
-        # Отримуємо нагадування, які мають next_due <= поточний час (вже настав час)
         rows = conn.execute("""
             SELECT * FROM medical_reminders 
             WHERE enabled = 1 AND next_due <= ?
@@ -888,6 +907,11 @@ def complete_reminder(reminder_id):
         row = conn.execute("SELECT interval_days, reminder_time FROM medical_reminders WHERE id = ?",
                            (reminder_id,)).fetchone()
         if row:
+            if row['interval_days'] == 0:
+                # Одноразове нагадування - видаляємо
+                conn.execute("DELETE FROM medical_reminders WHERE id = ?", (reminder_id,))
+                return True
+
             now = datetime.now()
             reminder_time = row['reminder_time'] or '09:00'
             reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
@@ -900,9 +924,6 @@ def complete_reminder(reminder_id):
             next_due_date += timedelta(days=row['interval_days'])
             next_due = int(next_due_date.timestamp())
 
-            # Використовуємо print замість logger (або можна залишити коментар)
-            print(f"Виконання нагадування {reminder_id}, наступне: {next_due_date.strftime('%Y-%m-%d %H:%M:%S')}")
-
             conn.execute("""
                 UPDATE medical_reminders SET last_triggered = ?, next_due = ? WHERE id = ?
             """, (int(now.timestamp()), next_due, reminder_id))
@@ -911,19 +932,25 @@ def complete_reminder(reminder_id):
 
 
 def get_notification_recipients():
-    """Отримати список chat_id для сповіщень (без відправки)"""
+    """Отримати список chat_id для сповіщень"""
     members = get_family_members()
     group_chats = get_group_chats()
     recipients = []
 
     for m in members:
-        if m['chat_id'] and m['notify_enabled']:
+        if m.get('chat_id') and m.get('notify_enabled'):
             recipients.append(m['chat_id'])
 
     for g in group_chats:
         recipients.append(g['chat_id'])
 
-    return recipients
+    # Додаємо адміністратора
+    admin_chat = get_setting('telegram_chat_id')
+    if admin_chat:
+        recipients.append(int(admin_chat))
+
+    return list(set(recipients))  # унікальні
+
 
 def delete_reminder(reminder_id):
     with get_db() as conn:
@@ -1056,14 +1083,23 @@ def get_weekly_chart_data():
 def get_full_report(days=7):
     start_time = int(time.time()) - days * 86400
     with get_db() as conn:
-        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?", (start_time,)).fetchone()[0]
-        training_count = conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
-        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
-        behavior = conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        feed = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?",
+                            (start_time,)).fetchone()[0]
+        toilet = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?",
+                             (start_time,)).fetchone()[0]
+        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?",
+                              (start_time,)).fetchone()[0]
+        training_count = \
+        conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?",
+                                    (start_time,)).fetchone()[0]
+        behavior = \
+        conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (start_time,)).fetchone()[
+            0]
 
         return {
             'days': days,
@@ -1102,7 +1138,8 @@ def get_body_measurements(limit=30):
         return [dict(r) for r in rows]
 
 
-def update_body_measurement(measurement_id, neck_cm=None, chest_cm=None, waist_cm=None, length_cm=None, height_cm=None, note=None, new_timestamp=None):
+def update_body_measurement(measurement_id, neck_cm=None, chest_cm=None, waist_cm=None, length_cm=None, height_cm=None,
+                            note=None, new_timestamp=None):
     with get_db() as conn:
         updates = []
         params = []
@@ -1146,7 +1183,8 @@ def delete_body_measurement(measurement_id):
 
 # ========== ВЕТЕРИНАРНИЙ ПАСПОРТ ==========
 
-def add_vaccination(vaccine_name, vaccine_date, next_due=None, series=None, vet_name=None, clinic_name=None, notes=None):
+def add_vaccination(vaccine_name, vaccine_date, next_due=None, series=None, vet_name=None, clinic_name=None,
+                    notes=None):
     with get_db() as conn:
         vaccine_ts = int(datetime.strptime(vaccine_date, '%Y-%m-%d').timestamp())
         next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
@@ -1169,7 +1207,8 @@ def get_vaccinations():
         return [dict(r) for r in rows]
 
 
-def add_parasite_treatment(name, treatment_date, next_due=None, parasite_type=None, medication=None, dosage=None, notes=None):
+def add_parasite_treatment(name, treatment_date, next_due=None, parasite_type=None, medication=None, dosage=None,
+                           notes=None):
     with get_db() as conn:
         treatment_ts = int(datetime.strptime(treatment_date, '%Y-%m-%d').timestamp())
         next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
@@ -1242,12 +1281,13 @@ def delete_family_member(member_id):
 
 
 def notify_family(message):
+    """Надсилання повідомлення всім членам сім'ї через Telegram"""
     members = get_family_members()
     group_chats = get_group_chats()
     notified = []
 
     for m in members:
-        if m['chat_id'] and m['notify_enabled']:
+        if m.get('chat_id') and m.get('notify_enabled'):
             try:
                 token = get_setting('telegram_bot_token')
                 if token:
@@ -1270,32 +1310,3 @@ def notify_family(message):
             pass
 
     return notified
-
-
-# Додайте цю функцію в database.py після init_db() або в самій init_db() після створення таблиць
-
-def migrate_db():
-    """Міграція бази даних - додавання нових колонок"""
-    with get_db() as conn:
-        # Перевіряємо наявність колонки reminder_time в medical_reminders
-        cursor = conn.execute("PRAGMA table_info(medical_reminders)")
-        columns = [col[1] for col in cursor.fetchall()]
-
-        if 'reminder_time' not in columns:
-            conn.execute("ALTER TABLE medical_reminders ADD COLUMN reminder_time TEXT DEFAULT '09:00'")
-            print("✅ Додано колонку reminder_time до medical_reminders")
-
-        if 'last_triggered' not in columns:
-            conn.execute("ALTER TABLE medical_reminders ADD COLUMN last_triggered INTEGER DEFAULT 0")
-            print("✅ Додано колонку last_triggered до medical_reminders")
-
-        # Перевіряємо інші таблиці
-        cursor = conn.execute("PRAGMA table_info(body_measurements)")
-        columns = [col[1] for col in cursor.fetchall()]
-
-        if 'note' not in columns:
-            conn.execute("ALTER TABLE body_measurements ADD COLUMN note TEXT")
-            print("✅ Додано колонку note до body_measurements")
-
-# Викличте migrate_db() після init_db() в кінці файлу
-# Додайте цей рядок перед останнім print в init_db() або після нього

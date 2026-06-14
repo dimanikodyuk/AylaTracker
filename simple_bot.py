@@ -7,7 +7,7 @@ import logging
 import os
 import time
 import threading
-from datetime import datetime, time as dt_time
+from datetime import datetime
 from dotenv import load_dotenv
 import database as db
 import requests
@@ -18,14 +18,8 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_API_URL = "https://api.telegram.org/bot"
 
-# Google Calendar інтеграція (опціонально)
-try:
-    from google_calendar import calendar as gc_calendar
-
-    GOOGLE_CALENDAR_AVAILABLE = True
-except ImportError:
-    GOOGLE_CALENDAR_AVAILABLE = False
-    logger.warning("Google Calendar не доступний")
+# Google Calendar інтеграція (тимчасово вимкнено)
+GOOGLE_CALENDAR_AVAILABLE = False
 
 
 class SimpleTelegramBot:
@@ -43,12 +37,14 @@ class SimpleTelegramBot:
             payload["parse_mode"] = parse_mode
         if reply_markup:
             payload["reply_markup"] = reply_markup
-        try:
-            response = requests.post(url, json=payload, timeout=10)
-            return response.json()
-        except Exception as e:
-            logger.error(f"Send message error: {e}")
-            return None
+        for attempt in range(3):
+            try:
+                response = requests.post(url, json=payload, timeout=10)
+                return response.json()
+            except Exception as e:
+                logger.error(f"Send message error (attempt {attempt+1}): {e}")
+                time.sleep(2)
+        return None
 
     def send_photo(self, chat_id, photo_url, caption=None):
         url = self.base_url + "sendPhoto"
@@ -65,13 +61,15 @@ class SimpleTelegramBot:
     def get_updates(self):
         url = self.base_url + "getUpdates"
         payload = {"offset": self.offset, "timeout": 30}
-        try:
-            response = requests.get(url, params=payload, timeout=35)
-            data = response.json()
-            if data.get("ok"):
-                return data.get("result", [])
-        except Exception as e:
-            logger.error(f"Get updates error: {e}")
+        for attempt in range(3):
+            try:
+                response = requests.get(url, params=payload, timeout=35)
+                data = response.json()
+                if data.get("ok"):
+                    return data.get("result", [])
+            except Exception as e:
+                logger.error(f"Get updates error (attempt {attempt+1}): {e}")
+                time.sleep(2)
         return []
 
     def answer_callback(self, callback_id, text=None):
@@ -169,18 +167,6 @@ def get_rate_keyboard(command_id, command_name):
     }
 
 
-def get_calendar_keyboard():
-    return {
-        "inline_keyboard": [
-            [{"text": "🔄 Синхронізувати нагадування", "callback_data": "calendar_sync"}],
-            [{"text": "🍖 Додати годування", "callback_data": "calendar_add_feed"}],
-            [{"text": "🚶 Додати прогулянку", "callback_data": "calendar_add_walk"}],
-            [{"text": "💊 Додати ліки", "callback_data": "calendar_add_med"}],
-            [{"text": "📋 Найближчі події", "callback_data": "calendar_upcoming"}]
-        ]
-    }
-
-
 # ========== ОБРОБКА ПОВІДОМЛЕНЬ ==========
 
 def handle_message(bot, chat_id, text, user_data):
@@ -238,14 +224,6 @@ def handle_message(bot, chat_id, text, user_data):
     elif text == "🏋️ Тренування":
         bot.send_message(chat_id, "🏋️ Оберіть команду:", reply_markup=get_training_keyboard())
 
-    # Google Calendar
-    elif text == "📅 Google Calendar":
-        if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-            bot.send_message(chat_id, "📅 <b>Google Calendar</b>\n\nОберіть дію:", reply_markup=get_calendar_keyboard(),
-                             parse_mode="HTML")
-        else:
-            bot.send_message(chat_id, "❌ Google Calendar не налаштовано. Потрібен файл credentials.json")
-
     # Статистика
     elif text == "📊 Статистика":
         stats = db.get_today_stats()
@@ -283,8 +261,7 @@ def handle_message(bot, chat_id, text, user_data):
                          "⚠️ Поведінка - запис проблемної поведінки\n"
                          "🧠 Ментальне - інтелектуальні ігри\n"
                          "🏋️ Тренування - навчання команд\n"
-                         "⚖️ Вага - контроль розвитку\n"
-                         "📅 Google Calendar - синхронізація (опціонально)\n\n"
+                         "⚖️ Вага - контроль розвитку\n\n"
                          "📊 <b>Команди:</b>\n"
                          "/start - Головне меню\n"
                          "/myid - Отримати Chat ID\n"
@@ -378,51 +355,6 @@ def handle_callback(bot, chat_id, callback_id, data, user_data):
             bot.send_message(chat_id, f"🧠 Введіть тривалість активності '{mental['name']}' (хв):")
             user_data['awaiting_mental_duration'] = mental_id
 
-    # Google Calendar дії
-    elif data == "calendar_sync":
-        bot.answer_callback(callback_id, "🔄 Синхронізація...")
-        if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-            gc_calendar.sync_reminders()
-            bot.send_message(chat_id, "✅ Всі нагадування синхронізовано з Google Calendar!")
-        else:
-            bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
-
-    elif data == "calendar_add_feed":
-        bot.answer_callback(callback_id)
-        bot.send_message(chat_id, "⏰ Введіть час годування (ГГ:ХХ):")
-        user_data['awaiting_feed_time'] = True
-
-    elif data == "calendar_add_walk":
-        bot.answer_callback(callback_id)
-        bot.send_message(chat_id, "⏰ Введіть час прогулянки (ГГ:ХХ):")
-        user_data['awaiting_walk_time'] = True
-
-    elif data == "calendar_add_med":
-        bot.answer_callback(callback_id)
-        bot.send_message(chat_id, "💊 Введіть назву ліків:")
-        user_data['awaiting_med_name'] = True
-
-    elif data == "calendar_upcoming":
-        bot.answer_callback(callback_id, "📋 Отримання подій...")
-        if GOOGLE_CALENDAR_AVAILABLE and gc_calendar and gc_calendar.service:
-            events = gc_calendar.get_upcoming_events()
-            if not events:
-                bot.send_message(chat_id, "📭 Немає найближчих подій")
-            else:
-                message = "📅 <b>Найближчі події:</b>\n\n"
-                for event in events[:5]:
-                    start = event['start'].get('dateTime', event['start'].get('date'))
-                    if 'T' in start:
-                        start_date = start.split('T')[0]
-                        start_time = start.split('T')[1][:5]
-                        start_str = f"{start_date} {start_time}"
-                    else:
-                        start_str = start
-                    message += f"• <b>{event['summary']}</b>\n  ⏰ {start_str}\n\n"
-                bot.send_message(chat_id, message, parse_mode="HTML")
-        else:
-            bot.send_message(chat_id, "❌ Google Calendar не налаштовано")
-
     elif data == "cancel":
         bot.answer_callback(callback_id)
         bot.send_message(chat_id, "❌ Дію скасовано", reply_markup=get_main_keyboard())
@@ -436,15 +368,15 @@ def send_potty_reminder(chat_id):
             requests.post(url, json={
                 'chat_id': chat_id,
                 'text': "⏱️ Айла поїла ~20 хв тому. Час вийти на прогулянку, щоб підтримати чисту поведінку вдома!"
-            })
+            }, timeout=10)
     except Exception as e:
         logger.error(f"Помилка нагадування: {e}")
 
 
 def check_reminders_loop(bot):
-    """Фонова перевірка нагадувань (кожну 1 хвилину)"""
+    """Фонова перевірка нагадувань (кожні 5 хвилин)"""
     while True:
-        time.sleep(60)  # Перевіряємо кожну хвилину (не годину)
+        time.sleep(300)  # Перевіряємо кожні 5 хвилин (не кожну хвилину)
         try:
             due_reminders = db.get_due_medical_reminders()
             for r in due_reminders:
