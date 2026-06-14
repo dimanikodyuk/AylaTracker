@@ -80,7 +80,6 @@ def send_telegram_photo(photo_bytes, caption, chat_id=None):
 
 
 def make_bar(value, max_val, width=12, fill='█', empty='░'):
-    """ASCII прогрес-бар"""
     if max_val == 0:
         filled = 0
     else:
@@ -90,7 +89,6 @@ def make_bar(value, max_val, width=12, fill='█', empty='░'):
 
 
 def generate_weekly_chart(weekly_data):
-    """Генерує PNG з тижневим графіком через matplotlib"""
     try:
         import matplotlib
         matplotlib.use('Agg')
@@ -118,7 +116,6 @@ def generate_weekly_chart(weekly_data):
         x = np.arange(len(short_dates))
         w = 0.6
 
-        # Walk bars
         ax1.bar(x, walk, width=w, color='#3498db', alpha=0.85, zorder=3)
         ax1.set_facecolor('#f0f4f8')
         ax1.set_ylabel('хв', color='#3498db', fontsize=9)
@@ -133,7 +130,6 @@ def generate_weekly_chart(weekly_data):
         ax1.spines['top'].set_visible(False)
         ax1.spines['right'].set_visible(False)
 
-        # Sleep bars
         ax2.bar(x, sleep, width=w, color='#9b59b6', alpha=0.85, zorder=3)
         ax2.set_facecolor('#f4f0f8')
         ax2.set_ylabel('год', color='#9b59b6', fontsize=9)
@@ -159,8 +155,8 @@ def generate_weekly_chart(weekly_data):
         logger.error(f"Chart generation error: {e}")
         return None
 
+
 def send_notifications(message):
-    """Відправка сповіщень всім отримувачам"""
     recipients = db.get_notification_recipients()
     sent = 0
     for chat_id in recipients:
@@ -168,8 +164,8 @@ def send_notifications(message):
             sent += 1
     return sent
 
+
 def build_daily_report_text(date_str, events, pet_name='Айла'):
-    """Формує красивий текст денного звіту"""
     feed_events = [e for e in events if e['type'] == 'feed']
     walk_events = [e for e in events if e['type'] == 'walk']
     sleep_events = [e for e in events if e['type'] == 'sleep']
@@ -190,7 +186,6 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
     except:
         date_pretty = date_str
 
-    # Оцінка дня
     score = 0
     if len(feed_events) >= 3: score += 2
     if walk_min >= 20: score += 2
@@ -266,7 +261,6 @@ def build_daily_report_text(date_str, events, pet_name='Айла'):
 
 
 def build_weekly_report_text(report, pet_name='Айла'):
-    """Формує красивий текст тижневого звіту"""
     walk_min = report.get('walk_seconds', 0) // 60
     sleep_hrs = report.get('sleep_seconds', 0) / 3600
     avg_walk = walk_min / 7
@@ -853,15 +847,19 @@ def api_report_week():
 
 @app.route('/api/send_report', methods=['POST'])
 def api_send_report():
-    """Надсилання тижневого звіту з графіком"""
     try:
         pet_name = db.get_setting('pet_name', 'Айла')
         report = db.get_full_report(7)
+        damages = db.get_damages_stats(7)
+        zoomies = db.get_zoomies_stats(7)
         weekly_data = db.get_weekly_chart_data()
 
         text = build_weekly_report_text(report, pet_name)
+        if damages['total'] > 0:
+            text += f"\n\n💸 Збитки за тиждень: {damages['total']:.0f} грн"
+        if zoomies['count'] > 0:
+            text += f"\n🐕 Зумісів: {zoomies['count']} разів"
 
-        # Генеруємо графік
         chart_bytes = generate_weekly_chart(weekly_data)
 
         recipients = [None] + [g['chat_id'] for g in db.get_group_chats()]
@@ -885,7 +883,6 @@ def api_send_report():
 
 @app.route('/api/send_daily_report', methods=['POST'])
 def api_send_daily_report():
-    """Надсилання денного звіту"""
     try:
         data = request.get_json()
         date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
@@ -917,7 +914,6 @@ def api_insight():
         if stats['walk_minutes'] > safe:
             insight += f" ⚠️ Ліміт прогулянки {safe} хв."
 
-        # Додаємо статус карантину
         quarantine = db.get_quarantine_status()
         if quarantine['in_quarantine']:
             insight += f" 🚨 Карантин: {quarantine['days_left']} днів."
@@ -934,61 +930,6 @@ def api_get_settings():
     except Exception as e:
         return jsonify({})
 
-# ========== КАЛЬКУЛЯТОР ЗБИТКІВ (DAMAGES) ==========
-
-@app.route('/api/damages', methods=['GET', 'POST', 'DELETE'])
-def api_damages():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.add_damage(data['item_name'], data['cost'], data.get('category'), data.get('note'))
-            return jsonify({'success': True})
-        elif request.method == 'DELETE':
-            data = request.get_json()
-            db.delete_damage(data['id'])
-            return jsonify({'success': True})
-        else:
-            damages = db.get_damages(100)
-            stats = db.get_damages_stats(30)
-            return jsonify({'damages': damages, 'stats': stats})
-    except Exception as e:
-        return jsonify({'damages': [], 'stats': {'total': 0, 'count': 0}})
-
-
-# ========== ЗУМІСИ (ZOOMIES) ==========
-
-@app.route('/api/zoomies', methods=['GET', 'POST', 'DELETE'])
-def api_zoomies():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.add_zoomie(data['duration'], data.get('intensity', 3), data.get('note'))
-            return jsonify({'success': True})
-        elif request.method == 'DELETE':
-            data = request.get_json()
-            db.delete_zoomie(data['id'])
-            return jsonify({'success': True})
-        else:
-            zoomies = db.get_zoomies(100)
-            stats = db.get_zoomies_stats(30)
-            return jsonify({'zoomies': zoomies, 'stats': stats})
-    except Exception as e:
-        return jsonify({'zoomies': [], 'stats': {'count': 0, 'avg_duration': 0}})
-
-
-# ========== КАРАНТИН (QUARANTINE) ==========
-
-@app.route('/api/quarantine', methods=['GET', 'POST'])
-def api_quarantine():
-    try:
-        if request.method == 'POST':
-            data = request.get_json()
-            db.set_last_vaccination(data['vaccination_date'])
-            return jsonify({'success': True})
-        else:
-            return jsonify(db.get_quarantine_status())
-    except Exception as e:
-        return jsonify({'in_quarantine': False, 'days_left': 0, 'message': 'Помилка'})
 
 @app.route('/api/settings', methods=['POST'])
 def api_save_settings():
@@ -1019,6 +960,62 @@ def api_test_telegram():
         return jsonify({'message': f'❌ Помилка: {response.text}'})
     except Exception as e:
         return jsonify({'message': f'❌ Помилка: {str(e)}'})
+
+
+# ========== НОВІ API ==========
+
+@app.route('/api/damages', methods=['GET', 'POST', 'DELETE'])
+def api_damages():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_damage(data['item_name'], data['cost'], data.get('category'), data.get('note'))
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            data = request.get_json()
+            db.delete_damage(data['id'])
+            return jsonify({'success': True})
+        else:
+            damages = db.get_damages(100)
+            stats = db.get_damages_stats(30)
+            return jsonify({'damages': damages, 'stats': stats})
+    except Exception as e:
+        logger.error(f"Damages API error: {e}")
+        return jsonify({'damages': [], 'stats': {'total': 0, 'count': 0}})
+
+
+@app.route('/api/zoomies', methods=['GET', 'POST', 'DELETE'])
+def api_zoomies():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.add_zoomie(data['duration'], data.get('intensity', 3), data.get('note'))
+            return jsonify({'success': True})
+        elif request.method == 'DELETE':
+            data = request.get_json()
+            db.delete_zoomie(data['id'])
+            return jsonify({'success': True})
+        else:
+            zoomies = db.get_zoomies(100)
+            stats = db.get_zoomies_stats(30)
+            return jsonify({'zoomies': zoomies, 'stats': stats})
+    except Exception as e:
+        logger.error(f"Zoomies API error: {e}")
+        return jsonify({'zoomies': [], 'stats': {'count': 0, 'avg_duration': 0}})
+
+
+@app.route('/api/quarantine', methods=['GET', 'POST'])
+def api_quarantine():
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            db.set_last_vaccination(data['vaccination_date'])
+            return jsonify({'success': True})
+        else:
+            return jsonify(db.get_quarantine_status())
+    except Exception as e:
+        logger.error(f"Quarantine API error: {e}")
+        return jsonify({'in_quarantine': False, 'days_left': 0, 'message': 'Помилка'})
 
 
 # ========== ВЕТПАСПОРТ ТА СІМ'Я ==========
