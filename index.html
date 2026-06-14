@@ -235,6 +235,10 @@
         .measurement-input { flex: 1; text-align: center; }
         .measurement-input label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; }
         .measurement-input input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 12px; text-align: center; }
+        .report-stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+        .report-stat { flex: 1; background: #f8f9fa; border-radius: 16px; padding: 12px; text-align: center; }
+        .report-stat-value { font-size: 24px; font-weight: 700; color: #333; }
+        .report-stat-label { font-size: 11px; color: #888; margin-top: 4px; }
         @media (min-width: 768px) {
             body { max-width: 900px; margin: 0 auto; padding: 20px; }
             .stat-value { font-size: 24px; }
@@ -300,7 +304,6 @@
         <button class="tab" data-tab="weight">⚖️ Вага</button>
         <button class="tab" data-tab="measurements">📏 Пропорції</button>
         <button class="tab" data-tab="training">🏋️ Тренування</button>
-        <button class="tab" data-tab="mental">🧠 Розвиток</button>
         <button class="tab" data-tab="health">💊 Здоров'я</button>
         <button class="tab" data-tab="vet">🏥 Ветпаспорт</button>
         <button class="tab" data-tab="family">👨‍👩‍👧‍👦 Сім'я</button>
@@ -331,12 +334,6 @@
         <div class="card"><div class="card-title">📋 Історія тренувань <button class="btn-small" onclick="showTrainingModal()">➕ Додати</button></div><div class="events-feed" id="trainingList"></div></div>
     </div>
 
-    <div id="tab-mental" class="tab-content">
-        <div class="card"><div class="card-title">🧠 Ментальна активність <button class="btn-small" onclick="showAddMentalTypeModal()">➕ Новий тип</button></div><canvas id="mentalChart"></canvas><div id="mentalAdvice" style="margin-top:12px; padding:12px; background:#f5f5f7; border-radius:16px;"></div></div>
-        <div class="card"><div class="card-title">📋 Історія активностей <button class="btn-small" onclick="showMentalModal()">➕ Додати</button></div><div class="events-feed" id="mentalActivitiesList"></div></div>
-        <div class="card"><div class="card-title">🔍 Маркери туалету</div><canvas id="pottyChart"></canvas></div>
-    </div>
-
     <div id="tab-health" class="tab-content">
         <div class="card"><div class="card-title">💊 Нагадування <button class="btn-small" onclick="showReminderModal()">➕ Додати</button></div><div class="events-feed" id="remindersList"></div></div>
         <div class="card"><div class="card-title">🌡️ Симптоми <button class="btn-small" onclick="showSymptomModal()">➕ Додати</button></div><div class="events-feed" id="symptomsList"></div></div>
@@ -355,8 +352,27 @@
     </div>
 
     <div id="tab-report" class="tab-content">
-        <div class="card"><div class="card-title">📊 Звіт за день</div><input type="date" id="reportDate" value=""><button class="btn" style="margin-top:12px" onclick="loadDayReport()">📅 Показати звіт</button><div id="dayReportContent"></div><button class="btn" style="margin-top:12px" onclick="sendDayReport()">📱 Надіслати в Telegram</button></div>
-        <div class="card"><div class="card-title">📊 Тижневий звіт</div><div id="reportContent"></div><button class="btn" style="margin-top:16px" onclick="sendReport()">📱 Надіслати в Telegram</button></div>
+        <div class="card">
+            <div class="card-title">📊 Звіт за сьогодні</div>
+            <div id="todayReportContent">
+                <div class="report-stats">
+                    <div class="report-stat"><div class="report-stat-value" id="todayFeed">0</div><div class="report-stat-label">🍖 Годувань</div></div>
+                    <div class="report-stat"><div class="report-stat-value" id="todayWalk">0</div><div class="report-stat-label">🚶 Прогулянка (хв)</div></div>
+                    <div class="report-stat"><div class="report-stat-value" id="todaySleep">0</div><div class="report-stat-label">😴 Сон (год)</div></div>
+                </div>
+                <div class="report-stats">
+                    <div class="report-stat"><div class="report-stat-value" id="todayToilet">0</div><div class="report-stat-label">🚽 Туалет</div></div>
+                    <div class="report-stat"><div class="report-stat-value" id="todayBehavior">0</div><div class="report-stat-label">⚠️ Поведінка</div></div>
+                    <div class="report-stat"><div class="report-stat-value" id="todayMental">0</div><div class="report-stat-label">🧠 Ментальне</div></div>
+                </div>
+            </div>
+            <button class="btn" onclick="sendDailyReportToTelegram()" style="margin-top:12px">📱 Надіслати звіт в Telegram</button>
+        </div>
+        <div class="card">
+            <div class="card-title">📊 Тижневий звіт</div>
+            <div id="weekReportContent"></div>
+            <button class="btn" style="margin-top:16px" onclick="sendWeekReportToTelegram()">📱 Надіслати в Telegram</button>
+        </div>
     </div>
 
     <div id="tab-settings" class="tab-content">
@@ -388,10 +404,9 @@
     <div id="weightModal" class="modal"><div class="modal-content"><h3>⚖️ Додати вагу</h3><input type="number" id="weightInput" step="0.1" placeholder="Вага в кг"><button class="btn" onclick="saveWeight()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('weightModal')">Скасувати</button></div></div>
     <div id="editWeightModal" class="modal"><div class="modal-content"><h3>✏️ Редагувати вагу</h3><input type="hidden" id="editWeightId"><input type="number" id="editWeightValue" step="0.1"><label>📅 Дата</label><input type="datetime-local" id="editWeightDatetime" class="datetime-input"><button class="btn" onclick="saveEditedWeight()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('editWeightModal')">Скасувати</button></div></div>
     <div id="measurementModal" class="modal"><div class="modal-content"><h3>📏 Додати заміри</h3><div class="measurement-row"><div class="measurement-input"><label>Шия (см)</label><input type="number" id="neckCm" step="0.1"></div><div class="measurement-input"><label>Груди (см)</label><input type="number" id="chestCm" step="0.1"></div></div><div class="measurement-row"><div class="measurement-input"><label>Талія (см)</label><input type="number" id="waistCm" step="0.1"></div><div class="measurement-input"><label>Довжина (см)</label><input type="number" id="lengthCm" step="0.1"></div></div><div class="measurement-row"><div class="measurement-input"><label>Висота (см)</label><input type="number" id="heightCm" step="0.1"></div></div><textarea id="measurementNote" rows="2" placeholder="Нотатки"></textarea><button class="btn" onclick="saveMeasurement()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('measurementModal')">Скасувати</button></div></div>
+    <div id="editMeasurementModal" class="modal"><div class="modal-content"><h3>✏️ Редагувати заміри</h3><input type="hidden" id="editMeasurementId"><div class="measurement-row"><div class="measurement-input"><label>Шия (см)</label><input type="number" id="editNeckCm" step="0.1"></div><div class="measurement-input"><label>Груди (см)</label><input type="number" id="editChestCm" step="0.1"></div></div><div class="measurement-row"><div class="measurement-input"><label>Талія (см)</label><input type="number" id="editWaistCm" step="0.1"></div><div class="measurement-input"><label>Довжина (см)</label><input type="number" id="editLengthCm" step="0.1"></div></div><div class="measurement-row"><div class="measurement-input"><label>Висота (см)</label><input type="number" id="editHeightCm" step="0.1"></div></div><textarea id="editMeasurementNote" rows="2" placeholder="Нотатки"></textarea><label>📅 Дата</label><input type="datetime-local" id="editMeasurementDatetime" class="datetime-input"><button class="btn" onclick="saveEditedMeasurement()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('editMeasurementModal')">Скасувати</button></div></div>
     <div id="trainingModal" class="modal"><div class="modal-content"><h3>🏋️ Тренування</h3><select id="commandInput"></select><input type="number" id="durationInput" placeholder="Тривалість (хв)" value="10"><select id="successInput"><option value="5">✅ Відмінно (5)</option><option value="3">👍 Задовільно (3)</option><option value="1">❌ Не вдалося (1)</option></select><button class="btn" onclick="saveTraining()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('trainingModal')">Скасувати</button></div></div>
     <div id="addTrainingTypeModal" class="modal"><div class="modal-content"><h3>➕ Нова команда</h3><input type="text" id="newTrainingType" placeholder="Назва команди"><input type="text" id="newTrainingIcon" placeholder="Іконка (emoji)" value="🏋️"><button class="btn" onclick="saveTrainingType()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('addTrainingTypeModal')">Скасувати</button></div></div>
-    <div id="mentalModal" class="modal"><div class="modal-content"><h3>🧠 Ментальна активність</h3><select id="mentalTypeInput"></select><input type="number" id="mentalDurationInput" placeholder="Тривалість (хв)" value="15"><button class="btn" onclick="saveMental()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('mentalModal')">Скасувати</button></div></div>
-    <div id="addMentalTypeModal" class="modal"><div class="modal-content"><h3>➕ Нова активність</h3><input type="text" id="newMentalType" placeholder="Назва активності"><input type="text" id="newMentalIcon" placeholder="Іконка (emoji)" value="🧠"><button class="btn" onclick="saveMentalType()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('addMentalTypeModal')">Скасувати</button></div></div>
     <div id="symptomModal" class="modal"><div class="modal-content"><h3>🌡️ Симптоми</h3><input type="number" id="tempInput" step="0.1" placeholder="Температура"><select id="appetiteInput"><option value="5">🍖 Відмінний</option><option value="3">😐 Задовільний</option><option value="1">😖 Поганий</option></select><select id="moodInput"><option>грайлива</option><option>спокійна</option><option>пригнічена</option></select><textarea id="symptomNote" rows="2" placeholder="Опис"></textarea><button class="btn" onclick="saveSymptom()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('symptomModal')">Скасувати</button></div></div>
     <div id="allergyModal" class="modal"><div class="modal-content"><h3>⚠️ Алергія</h3><input type="text" id="allergyProduct" placeholder="Продукт"><input type="text" id="allergyReaction" placeholder="Реакція"><select id="allergySeverity"><option value="5">🔴 Дуже сильна</option><option value="3">🟡 Середня</option><option value="1">🟢 Слабка</option></select><button class="btn" onclick="saveAllergy()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('allergyModal')">Скасувати</button></div></div>
     <div id="reminderModal" class="modal"><div class="modal-content"><h3>💊 Нагадування</h3><input type="text" id="reminderTitle" placeholder="Назва"><textarea id="reminderDesc" rows="2" placeholder="Опис"></textarea><input type="number" id="reminderInterval" placeholder="Інтервал (днів)"><input type="time" id="reminderTime" value="09:00"><button class="btn" onclick="saveReminder()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('reminderModal')">Скасувати</button></div></div>
@@ -401,12 +416,12 @@
     <div id="familyModal" class="modal"><div class="modal-content"><h3>👨‍👩‍👧‍👦 Додати члена сім'ї</h3><input type="text" id="familyName" placeholder="Ім'я"><select id="familyRole"><option value="member">Член сім'ї</option><option value="admin">Адміністратор</option></select><input type="text" id="familyChatId" placeholder="Chat ID"><label><input type="checkbox" id="familyNotify" checked> Сповіщення</label><button class="btn" onclick="saveFamilyMember()">💾 Зберегти</button><button class="btn btn-secondary" style="margin-top:8px" onclick="closeModal('familyModal')">Скасувати</button></div></div>
 
     <script>
-        let timelineChart, weeklyChart, weightChart, trainingChart, mentalChart, pottyChart, measurementsChart;
+        let timelineChart, weeklyChart, weightChart, trainingChart, measurementsChart;
         let currentDayOffset = 0;
         let behaviorTypes = [];
 
-        const eventIcons = { 'feed': '🍖', 'walk': '🚶', 'sleep': '😴', 'toilet': '🚽', 'behavior': '⚠️', 'mental': '🧠' };
-        const eventNames = { 'feed': 'Годування', 'walk': 'Прогулянка', 'sleep': 'Сон', 'toilet': 'Туалет', 'behavior': 'Поведінка', 'mental': 'Ментальна' };
+        const eventIcons = { 'feed': '🍖', 'walk': '🚶', 'sleep': '😴', 'toilet': '🚽', 'behavior': '⚠️' };
+        const eventNames = { 'feed': 'Годування', 'walk': 'Прогулянка', 'sleep': 'Сон', 'toilet': 'Туалет', 'behavior': 'Поведінка' };
         const toiletTypes = { 'піся': '💧 Піся', 'кака': '💩 Кака' };
 
         function formatDuration(seconds) {
@@ -445,9 +460,8 @@
             if (tabName === 'weight') loadWeightData();
             if (tabName === 'measurements') loadMeasurements();
             if (tabName === 'training') loadTrainingData();
-            if (tabName === 'mental') loadMentalData();
             if (tabName === 'health') loadHealthData();
-            if (tabName === 'report') { loadReport(); document.getElementById('reportDate').value = new Date().toISOString().slice(0,10); }
+            if (tabName === 'report') { loadTodayReport(); loadWeekReport(); }
             if (tabName === 'feed') loadEventsFeed();
             if (tabName === 'settings') loadSettings();
             if (tabName === 'vet') loadVetData();
@@ -491,13 +505,13 @@
         async function quickAddBehavior(type) {
             await fetch('/api/add_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'behavior', subtype: type }) });
             showToast('✅ Записано');
-            loadStats(); loadEventsFeed(); loadTimeline();
+            loadStats(); loadEventsFeed(); loadTimeline(); loadTodayReport();
         }
 
         async function quickAdd(type) {
             await fetch('/api/add_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type }) });
             showToast('✅ Записано');
-            loadStats(); loadEventsFeed(); loadTimeline();
+            loadStats(); loadEventsFeed(); loadTimeline(); loadTodayReport();
         }
 
         async function loadStats() {
@@ -564,7 +578,7 @@
             if (confirm('Видалити подію?')) {
                 await fetch('/api/delete_event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
                 showToast('🗑 Видалено');
-                loadEventsFeed(); loadStats(); loadTimeline();
+                loadEventsFeed(); loadStats(); loadTimeline(); loadTodayReport();
             }
         }
 
@@ -577,7 +591,6 @@
             if (eventType === 'feed') extraHtml = `<label>🍖 Кількість (г)</label><input type="number" id="editEventValue" value="${eventValue || ''}">`;
             else if (eventType === 'walk' || eventType === 'sleep') extraHtml = `<label>⏱ Тривалість (хв)</label><input type="number" id="editEventValue" value="${Math.floor((eventValue || 0) / 60)}">`;
             else if (eventType === 'toilet') extraHtml = `<label>🚽 Тип</label><select id="editEventSubtype"><option value="піся" ${eventSubtype === 'піся' ? 'selected' : ''}>💧 Піся</option><option value="кака" ${eventSubtype === 'кака' ? 'selected' : ''}>💩 Кака</option></select>`;
-            else if (eventType === 'mental') extraHtml = `<label>🧠 Тип</label><input type="text" id="editEventSubtype" value="${eventSubtype || ''}"><label>⏱ Тривалість (хв)</label><input type="number" id="editEventValue" value="${eventValue || 15}">`;
             document.getElementById('editEventExtraFields').innerHTML = extraHtml;
             document.getElementById('editModalTitle').innerHTML = `✏️ Редагувати ${eventNames[eventType] || 'подію'}`;
             document.getElementById('editEventModal').style.display = 'flex';
@@ -590,11 +603,10 @@
             const note = document.getElementById('editEventNote').value;
             let value = null, subtype = null;
             if (eventType === 'toilet') subtype = document.getElementById('editEventSubtype')?.value;
-            else if (eventType === 'mental') { subtype = document.getElementById('editEventSubtype')?.value; value = parseInt(document.getElementById('editEventValue')?.value) || 15; }
             else if (eventType === 'feed') value = parseInt(document.getElementById('editEventValue')?.value) || null;
             else if (eventType === 'walk' || eventType === 'sleep') value = (parseInt(document.getElementById('editEventValue')?.value) || 0) * 60;
             const res = await fetch(`/api/event/${eventId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ datetime, note, type: eventType, subtype, value }) });
-            if (res.ok) { showToast('✅ Оновлено'); closeModal('editEventModal'); loadEventsFeed(); loadStats(); loadTimeline(); }
+            if (res.ok) { showToast('✅ Оновлено'); closeModal('editEventModal'); loadEventsFeed(); loadStats(); loadTimeline(); loadTodayReport(); }
             else showToast('❌ Помилка');
         }
 
@@ -609,7 +621,7 @@
                 showToast('🚶 Прогулянка розпочата');
                 document.getElementById('walkIcon').innerHTML = '⏹️'; document.getElementById('walkText').innerHTML = 'Зупинити';
             }
-            loadStats(); loadEventsFeed(); loadTimeline();
+            loadStats(); loadEventsFeed(); loadTimeline(); loadTodayReport();
         }
 
         async function toggleSleep() {
@@ -623,7 +635,7 @@
                 showToast('💤 Сон розпочато');
                 document.getElementById('sleepIcon').innerHTML = '⏹️'; document.getElementById('sleepText').innerHTML = 'Зупинити';
             }
-            loadStats(); loadEventsFeed(); loadTimeline();
+            loadStats(); loadEventsFeed(); loadTimeline(); loadTodayReport();
         }
 
         async function loadWeightData() {
@@ -668,14 +680,46 @@
                     const labels = d.measurements.map(m => m.date.split(' ')[0]);
                     measurementsChart = new Chart(document.getElementById('measurementsChart'), { type: 'line', data: { labels, datasets: [{ label: 'Шия (см)', data: d.measurements.map(m => m.neck_cm || 0), borderColor: '#3498db' }, { label: 'Груди (см)', data: d.measurements.map(m => m.chest_cm || 0), borderColor: '#e74c3c' }, { label: 'Талія (см)', data: d.measurements.map(m => m.waist_cm || 0), borderColor: '#2ecc71' }] } });
                 }
-                document.getElementById('measurementsList').innerHTML = d.measurements.map(m => `<div class="event-card"><div class="event-icon-large">📏</div><div class="event-details"><div class="event-title-large">${m.date}</div><div class="event-subtitle">Шия: ${m.neck_cm || '—'}см | Груди: ${m.chest_cm || '—'}см | Талія: ${m.waist_cm || '—'}см</div>${m.note ? `<div class="event-duration">📝 ${m.note}</div>` : ''}</div><button class="edit-event-btn" onclick="editMeasurement(${m.id})">✏️</button><button class="delete-event-btn" onclick="deleteMeasurement(${m.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
+                document.getElementById('measurementsList').innerHTML = d.measurements.map(m => `<div class="event-card"><div class="event-icon-large">📏</div><div class="event-details"><div class="event-title-large">${m.date}</div><div class="event-subtitle">Шия: ${m.neck_cm || '—'}см | Груди: ${m.chest_cm || '—'}см | Талія: ${m.waist_cm || '—'}см</div>${m.note ? `<div class="event-duration">📝 ${m.note}</div>` : ''}</div><button class="edit-event-btn" onclick="editMeasurement(${m.id}, ${m.neck_cm || 0}, ${m.chest_cm || 0}, ${m.waist_cm || 0}, ${m.length_cm || 0}, ${m.height_cm || 0}, '${(m.note || '').replace(/'/g, "\\'")}', '${m.date}')">✏️</button><button class="delete-event-btn" onclick="deleteMeasurement(${m.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає даних</div>';
             } catch(e) { console.error(e); }
+        }
+
+        function editMeasurement(id, neck, chest, waist, length, height, note, date) {
+            document.getElementById('editMeasurementId').value = id;
+            document.getElementById('editNeckCm').value = neck || '';
+            document.getElementById('editChestCm').value = chest || '';
+            document.getElementById('editWaistCm').value = waist || '';
+            document.getElementById('editLengthCm').value = length || '';
+            document.getElementById('editHeightCm').value = height || '';
+            document.getElementById('editMeasurementNote').value = note || '';
+            document.getElementById('editMeasurementDatetime').value = date.replace(' ', 'T');
+            document.getElementById('editMeasurementModal').style.display = 'flex';
+        }
+
+        async function saveEditedMeasurement() {
+            const id = document.getElementById('editMeasurementId').value;
+            const data = {
+                neck_cm: parseFloat(document.getElementById('editNeckCm').value) || null,
+                chest_cm: parseFloat(document.getElementById('editChestCm').value) || null,
+                waist_cm: parseFloat(document.getElementById('editWaistCm').value) || null,
+                length_cm: parseFloat(document.getElementById('editLengthCm').value) || null,
+                height_cm: parseFloat(document.getElementById('editHeightCm').value) || null,
+                note: document.getElementById('editMeasurementNote').value,
+                datetime: document.getElementById('editMeasurementDatetime').value
+            };
+            await fetch(`/api/measurements/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            closeModal('editMeasurementModal'); showToast('📏 Оновлено'); loadMeasurements();
+        }
+
+        async function deleteMeasurement(id) {
+            if (confirm('Видалити заміри?')) { await fetch(`/api/measurements/${id}`, { method: 'DELETE' }); showToast('🗑 Видалено'); loadMeasurements(); }
         }
 
         function showMeasurementModal() { document.getElementById('measurementModal').style.display = 'flex'; }
         async function saveMeasurement() {
             await fetch('/api/measurements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ neck_cm: parseFloat(document.getElementById('neckCm').value) || null, chest_cm: parseFloat(document.getElementById('chestCm').value) || null, waist_cm: parseFloat(document.getElementById('waistCm').value) || null, length_cm: parseFloat(document.getElementById('lengthCm').value) || null, height_cm: parseFloat(document.getElementById('heightCm').value) || null, note: document.getElementById('measurementNote').value }) });
             closeModal('measurementModal'); showToast('📏 Заміри збережено'); loadMeasurements();
+            document.getElementById('neckCm').value = ''; document.getElementById('chestCm').value = ''; document.getElementById('waistCm').value = ''; document.getElementById('lengthCm').value = ''; document.getElementById('heightCm').value = ''; document.getElementById('measurementNote').value = '';
         }
 
         async function loadTrainingData() {
@@ -701,32 +745,6 @@
             if (name) { await fetch('/api/training_types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon: document.getElementById('newTrainingIcon').value }) }); closeModal('addTrainingTypeModal'); showToast('✅ Додано'); loadTrainingData(); }
         }
 
-        async function loadMentalData() {
-            try {
-                const res = await fetch('/api/mental');
-                const d = await res.json();
-                if (mentalChart) mentalChart.destroy();
-                mentalChart = new Chart(document.getElementById('mentalChart'), { type: 'bar', data: { labels: d.dates, datasets: [{ label: 'Активність (хв)', data: d.durations, backgroundColor: '#e67e22' }] } });
-                if (pottyChart) pottyChart.destroy();
-                if (d.potty_types.length > 0) pottyChart = new Chart(document.getElementById('pottyChart'), { type: 'pie', data: { labels: d.potty_types, datasets: [{ data: d.potty_counts, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'] }] } });
-                document.getElementById('mentalTypeInput').innerHTML = d.types.map(t => `<option value="${t.name}">${t.icon} ${t.name}</option>`).join('');
-                document.getElementById('mentalActivitiesList').innerHTML = d.activities.map(a => `<div class="event-card"><div class="event-icon-large">🧠</div><div class="event-details"><div class="event-title-large">${a.activity_type}</div><div class="event-subtitle">${a.duration} хв</div><div class="event-duration">${a.date}</div></div><button class="edit-event-btn" onclick="editMental(${a.id})">✏️</button><button class="delete-event-btn" onclick="deleteMental(${a.id})">🗑</button></div>`).join('') || '<div class="empty-state">📭 Немає активностей</div>';
-                document.getElementById('mentalAdvice').innerHTML = (d.avg_mental || 0) < 15 ? '⚠️ Рекомендується 15+ хв інтелектуальних ігор щодня.' : '✅ Чудовий баланс!';
-            } catch(e) { console.error(e); }
-        }
-
-        function showMentalModal() { document.getElementById('mentalModal').style.display = 'flex'; }
-        async function saveMental() {
-            await fetch('/api/add_mental', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activity_type: document.getElementById('mentalTypeInput').value, duration: parseInt(document.getElementById('mentalDurationInput').value) || 15 }) });
-            closeModal('mentalModal'); showToast('🧠 Збережено'); loadMentalData();
-        }
-
-        function showAddMentalTypeModal() { document.getElementById('addMentalTypeModal').style.display = 'flex'; }
-        async function saveMentalType() {
-            const name = document.getElementById('newMentalType').value;
-            if (name) { await fetch('/api/mental_types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon: document.getElementById('newMentalIcon').value }) }); closeModal('addMentalTypeModal'); showToast('✅ Додано'); loadMentalData(); }
-        }
-
         async function loadHealthData() {
             try {
                 const res = await fetch('/api/health');
@@ -742,8 +760,9 @@
             const title = document.getElementById('reminderTitle').value;
             const interval = document.getElementById('reminderInterval').value;
             if (!title || !interval) { showToast('❌ Заповніть назву та інтервал'); return; }
-            await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description: document.getElementById('reminderDesc').value, interval_days: parseInt(interval), reminder_time: document.getElementById('reminderTime').value }) });
-            closeModal('reminderModal'); showToast('💊 Додано'); loadHealthData();
+            const res = await fetch('/api/add_reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, description: document.getElementById('reminderDesc').value, interval_days: parseInt(interval), reminder_time: document.getElementById('reminderTime').value }) });
+            if (res.ok) { showToast('💊 Додано'); closeModal('reminderModal'); loadHealthData(); }
+            else showToast('❌ Помилка');
         }
 
         async function completeReminder(id) {
@@ -758,17 +777,17 @@
             }
         }
 
+        function showSymptomModal() { document.getElementById('symptomModal').style.display = 'flex'; }
+        async function saveSymptom() {
+            await fetch('/api/add_symptom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ temperature: parseFloat(document.getElementById('tempInput').value) || null, appetite: parseInt(document.getElementById('appetiteInput').value), mood: document.getElementById('moodInput').value, note: document.getElementById('symptomNote').value }) });
+            closeModal('symptomModal'); showToast('🌡️ Збережено'); loadHealthData();
+        }
+
         async function deleteSymptom(id) {
             if (confirm('Видалити запис?')) {
                 await fetch('/api/delete_symptom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
                 showToast('🗑 Видалено'); loadHealthData();
             }
-        }
-
-        function showSymptomModal() { document.getElementById('symptomModal').style.display = 'flex'; }
-        async function saveSymptom() {
-            await fetch('/api/add_symptom', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ temperature: parseFloat(document.getElementById('tempInput').value) || null, appetite: parseInt(document.getElementById('appetiteInput').value), mood: document.getElementById('moodInput').value, note: document.getElementById('symptomNote').value }) });
-            closeModal('symptomModal'); showToast('🌡️ Збережено'); loadHealthData();
         }
 
         function showAllergyModal() { document.getElementById('allergyModal').style.display = 'flex'; }
@@ -783,30 +802,35 @@
             if (confirm('Видалити алергію?')) { await fetch('/api/delete_allergy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); loadHealthData(); }
         }
 
-        async function loadReport() {
-            const res = await fetch('/api/report');
-            const d = await res.json();
-            document.getElementById('reportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p><p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p><p>🚽 Туалет: ${d.toilet}</p><p>⚠️ Поведінка: ${d.behavior || 0}</p><p>🧠 Ментальне: ${d.mental_minutes} хв</p><p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>`;
+        async function loadTodayReport() {
+            try {
+                const res = await fetch('/api/report');
+                const d = await res.json();
+                document.getElementById('todayFeed').textContent = d.feed;
+                document.getElementById('todayWalk').textContent = d.walk_minutes;
+                document.getElementById('todaySleep').textContent = d.sleep_hours;
+                document.getElementById('todayToilet').textContent = d.toilet;
+                document.getElementById('todayBehavior').textContent = d.behavior;
+                document.getElementById('todayMental').textContent = d.mental;
+            } catch(e) { console.error(e); }
         }
 
-        async function loadDayReport() {
-            const date = document.getElementById('reportDate').value;
-            const res = await fetch(`/api/report/day?date=${date}`);
+        async function loadWeekReport() {
+            const res = await fetch('/api/report/week');
             const d = await res.json();
-            document.getElementById('dayReportContent').innerHTML = `<p>📅 <strong>Звіт за ${d.date}</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${d.walk_minutes} хв</p><p>😴 Сну: ${d.sleep_hours} год</p><p>🚽 Туалет: ${d.toilet}</p><p>⚠️ Поведінка: ${d.behavior}</p><p>🧠 Ментальне: ${d.mental}</p>`;
+            document.getElementById('weekReportContent').innerHTML = `<p>📊 <strong>Звіт за ${d.days} днів</strong></p><p>🍖 Годувань: ${d.feed}</p><p>🚶 Прогулянок: ${formatTimeHM(d.walk_seconds || 0)}</p><p>😴 Сну: ${formatTimeHM(d.sleep_seconds || 0)}</p><p>🚽 Туалет: ${d.toilet}</p><p>⚠️ Поведінка: ${d.behavior || 0}</p><p>🧠 Ментальне: ${d.mental_minutes} хв</p><p>🏋️ Тренувань: ${d.training_count} (усп. ${d.training_avg}/5)</p>`;
         }
 
-        async function sendReport() {
+        async function sendDailyReportToTelegram() {
+            const chatId = document.getElementById('settingGroupChatId').value || document.getElementById('settingTelegramChatId').value;
+            await fetch('/api/send_daily_report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: new Date().toISOString().slice(0,10), chat_id: chatId }) });
+            showToast('📨 Звіт надіслано');
+        }
+
+        async function sendWeekReportToTelegram() {
             const res = await fetch('/api/send_report', { method: 'POST' });
             const d = await res.json();
             showToast(d.message);
-        }
-
-        async function sendDayReport() {
-            const date = document.getElementById('reportDate').value;
-            const chatId = document.getElementById('settingGroupChatId').value || document.getElementById('settingTelegramChatId').value;
-            await fetch('/api/send_daily_report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, chat_id: chatId }) });
-            showToast('📨 Звіт надіслано');
         }
 
         async function loadInsight() {
@@ -919,9 +943,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             initTabs();
             loadStats(); loadTimeline(); loadWeekly(); loadEventsFeed(); loadWeightData(); loadTrainingData();
-            loadMentalData(); loadHealthData(); loadInsight(); loadSettings(); loadBehaviorTypes();
-            loadMeasurements(); loadVetData(); loadFamilyMembers();
-            setInterval(() => { loadStats(); loadInsight(); }, 30000);
+            loadHealthData(); loadInsight(); loadSettings(); loadBehaviorTypes();
+            loadMeasurements(); loadVetData(); loadFamilyMembers(); loadTodayReport(); loadWeekReport();
+            setInterval(() => { loadStats(); loadInsight(); loadTodayReport(); }, 30000);
         });
     </script>
 </body>

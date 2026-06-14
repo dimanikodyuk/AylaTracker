@@ -444,6 +444,7 @@ def api_add_reminder():
         db.add_medical_reminder(data['title'], data.get('description', ''), data['interval_days'], data.get('reminder_time', '09:00'))
         return jsonify({'success': True})
     except Exception as e:
+        logger.error(f"Add reminder error: {e}")
         return jsonify({'success': False})
 
 
@@ -461,8 +462,7 @@ def api_complete_reminder():
 def api_delete_reminder():
     try:
         data = request.get_json()
-        with db.get_db() as conn:
-            conn.execute("DELETE FROM medical_reminders WHERE id = ?", (data['id'],))
+        db.delete_reminder(data['id'])
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False})
@@ -482,8 +482,7 @@ def api_add_symptom():
 def api_delete_symptom():
     try:
         data = request.get_json()
-        with db.get_db() as conn:
-            conn.execute("DELETE FROM symptoms_log WHERE id = ?", (data['id'],))
+        db.delete_symptom(data['id'])
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False})
@@ -556,29 +555,29 @@ def api_update_measurement(measurement_id):
 @app.route('/api/report')
 def api_report():
     try:
-        return jsonify(db.get_full_report(7))
-    except Exception as e:
-        return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0,
-                        'mental_minutes': 0, 'training_count': 0, 'training_avg': 0, 'behavior': 0})
-
-
-@app.route('/api/report/day')
-def api_report_day():
-    try:
-        date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
-        events = db.get_events_by_date_range(date, date)
+        today = datetime.now().strftime('%Y-%m-%d')
+        events = db.get_events_by_date_range(today, today)
         return jsonify({
-            'date': date,
+            'date': today,
             'feed': len([e for e in events if e['type'] == 'feed']),
             'walk_minutes': sum([e['value'] for e in events if e['type'] == 'walk']) // 60,
             'toilet': len([e for e in events if e['type'] == 'toilet']),
             'sleep_hours': sum([e['value'] for e in events if e['type'] == 'sleep']) // 3600,
             'behavior': len([e for e in events if e['type'] == 'behavior']),
             'mental': len([e for e in events if e['type'] == 'mental']),
-            'events': events
+            'training': len([e for e in events if e['type'] == 'training'])
         })
     except Exception as e:
         return jsonify({'error': str(e)})
+
+
+@app.route('/api/report/week')
+def api_report_week():
+    try:
+        return jsonify(db.get_full_report(7))
+    except Exception as e:
+        return jsonify({'days': 7, 'feed': 0, 'walk_seconds': 0, 'toilet': 0, 'sleep_seconds': 0,
+                        'mental_minutes': 0, 'training_count': 0, 'training_avg': 0, 'behavior': 0})
 
 
 @app.route('/api/send_report', methods=['POST'])

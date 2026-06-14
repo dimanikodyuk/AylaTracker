@@ -83,7 +83,7 @@ def init_db():
                 user_id INTEGER
             );
 
-            -- Типи тренувань (користувацькі)
+            -- Типи тренувань
             CREATE TABLE IF NOT EXISTS training_types (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
@@ -119,7 +119,7 @@ def init_db():
                 created_at INTEGER DEFAULT (strftime('%s', 'now'))
             );
 
-            -- Медичні нагадування (оновлена структура)
+            -- Медичні нагадування
             CREATE TABLE IF NOT EXISTS medical_reminders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
@@ -227,9 +227,7 @@ def init_db():
                 updated_at INTEGER DEFAULT (strftime('%s', 'now'))
             );
 
-            -- ========== НОВІ ТАБЛИЦІ ==========
-
-            -- Ветеринарний паспорт (щеплення)
+            -- Ветеринарний паспорт
             CREATE TABLE IF NOT EXISTS vet_vaccinations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 vaccine_name TEXT NOT NULL,
@@ -289,18 +287,7 @@ def init_db():
                 created_at INTEGER DEFAULT (strftime('%s', 'now'))
             );
 
-            -- Прогнози та тренди
-            CREATE TABLE IF NOT EXISTS predictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                prediction_date INTEGER NOT NULL,
-                prediction_type TEXT NOT NULL,
-                predicted_value REAL,
-                confidence REAL,
-                actual_value REAL,
-                created_at INTEGER DEFAULT (strftime('%s', 'now'))
-            );
-
-            -- Пропорції (заміри тіла)
+            -- Пропорції
             CREATE TABLE IF NOT EXISTS body_measurements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp INTEGER NOT NULL,
@@ -330,39 +317,23 @@ def init_db():
         for key, value in defaults.items():
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (key, value))
 
-        # Додаємо типи тренувань за замовчуванням
+        # Типи тренувань
         training_defaults = [("Сідати", "🐕"), ("Лежати", "😴"), ("До мене", "🏃"), ("Поруч", "🚶"), ("Дай лапу", "🖐️"),
                              ("Голос", "🗣️"), ("Апорт", "🎾")]
         for name, icon in training_defaults:
             conn.execute('INSERT OR IGNORE INTO training_types (name, icon) VALUES (?, ?)', (name, icon))
 
-        # Додаємо типи ментальних активностей
+        # Типи ментальних активностей
         mental_defaults = [("Головоломка", "🧩"), ("Пошук ласощів", "🔍"), ("Вивчення трюків", "🎓"),
                            ("Нюхальний килимок", "👃"), ("Клікер-тренування", "🖱️"), ("Соціалізація", "🤝")]
         for name, icon in mental_defaults:
             conn.execute('INSERT OR IGNORE INTO mental_types (name, icon) VALUES (?, ?)', (name, icon))
 
-        # Додаємо типи поведінки
+        # Типи поведінки
         behavior_defaults = [("Кусається", "🦷", 3), ("Гавкає", "🗣️", 2), ("Гризе меблі", "🪑", 3),
                              ("Стрибає на людей", "🦘", 2), ("Тягне повідок", "🪢", 2), ("Погана поведінка", "⚠️", 1)]
         for name, icon, severity in behavior_defaults:
-            conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)',
-                         (name, icon, severity))
-
-        # Розумні нагадування за замовчуванням
-        smart_reminders_defaults = [
-            ("💉 Перевірка щеплень", "Час перевірити графік щеплень", "vaccination_due", "", 7, 1),
-            ("💊 Обробка від паразитів", "Заплануйте обробку від паразитів", "parasite_due", "", 7, 1),
-            ("🦷 Чистка зубів", "Час почистити зуби Айлі", "date_based", "", 0, 1),
-            ("⚖️ Контроль ваги", "Перевірте вагу Айли", "weight_check", "", 0, 1),
-            ("🏃 Активність", "Останнім часом мало прогулянок", "low_activity", "30", 0, 1),
-        ]
-
-        for sm in smart_reminders_defaults:
-            conn.execute('''
-                INSERT OR IGNORE INTO smart_reminders (title, description, condition_type, condition_value, days_before, enabled)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', sm)
+            conn.execute('INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)', (name, icon, severity))
 
         print("✅ База даних ініціалізована")
 
@@ -417,7 +388,6 @@ def add_event(event_type, subtype=None, value=None, note=None, user_id=None):
 
 
 def add_behavior(behavior_type, severity=None, note=None):
-    """Додати запис про поведінку"""
     with get_db() as conn:
         now = int(time.time())
         conn.execute("""
@@ -514,19 +484,11 @@ def stop_session(session_type):
 def get_today_stats():
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
-        feed = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        walk = \
-        conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[
-            0] or 0
-        toilet = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
-        sleep = \
-        conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[
-            0] or 0
-        behavior = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (today_start,)).fetchone()[
-            0]
+        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        walk = conn.execute("SELECT SUM(value) FROM events WHERE type='walk' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
+        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (today_start,)).fetchone()[0]
+        sleep = conn.execute("SELECT SUM(value) FROM events WHERE type='sleep' AND timestamp >= ?", (today_start,)).fetchone()[0] or 0
+        behavior = conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (today_start,)).fetchone()[0]
         return {
             'feed': feed,
             'walk_minutes': walk // 60,
@@ -578,7 +540,6 @@ def get_events_list(limit=200):
 
 
 def get_events_by_date_range(start_date, end_date):
-    """Отримати події за діапазон дат"""
     start_ts = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp())
     end_ts = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) + 86400
     with get_db() as conn:
@@ -687,8 +648,7 @@ def get_training_stats():
             SELECT command, COUNT(*) as count, AVG(success_rate) as avg_success
             FROM training_logs GROUP BY command
         """).fetchall()
-        return [{'command': r['command'], 'count': r['count'], 'avg_success': round(r['avg_success'], 1)} for r in
-                stats]
+        return [{'command': r['command'], 'count': r['count'], 'avg_success': round(r['avg_success'], 1)} for r in stats]
 
 
 def get_training_history(limit=50):
@@ -790,16 +750,8 @@ def add_mental_type(name, icon='🧠'):
 
 def get_behavior_types():
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT id, name, icon, severity FROM behavior_types ORDER BY severity DESC, name").fetchall()
+        rows = conn.execute("SELECT id, name, icon, severity FROM behavior_types ORDER BY severity DESC, name").fetchall()
         return [dict(r) for r in rows]
-
-
-def add_behavior_type(name, icon='⚠️', severity=1):
-    with get_db() as conn:
-        conn.execute("INSERT OR IGNORE INTO behavior_types (name, icon, severity) VALUES (?, ?, ?)",
-                     (name, icon, severity))
-        return True
 
 
 def add_potty_cue(cue_type, success=0):
@@ -844,7 +796,6 @@ def get_medical_reminders():
 
 
 def get_due_medical_reminders():
-    """Отримати нагадування, які мають бути виконані сьогодні"""
     now = int(time.time())
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
@@ -863,8 +814,7 @@ def get_due_medical_reminders():
 
 def complete_reminder(reminder_id):
     with get_db() as conn:
-        row = conn.execute("SELECT interval_days, reminder_time FROM medical_reminders WHERE id = ?",
-                           (reminder_id,)).fetchone()
+        row = conn.execute("SELECT interval_days, reminder_time FROM medical_reminders WHERE id = ?", (reminder_id,)).fetchone()
         if row:
             now = int(time.time())
             next_due = now + row['interval_days'] * 86400
@@ -873,6 +823,12 @@ def complete_reminder(reminder_id):
             """, (now, next_due, reminder_id))
             return True
     return False
+
+
+def delete_reminder(reminder_id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM medical_reminders WHERE id = ?", (reminder_id,))
+        return True
 
 
 def add_symptom(temperature=None, appetite=None, mood=None, note=None):
@@ -888,11 +844,17 @@ def add_symptom(temperature=None, appetite=None, mood=None, note=None):
 def get_symptoms():
     with get_db() as conn:
         rows = conn.execute("""
-            SELECT datetime(timestamp, 'unixepoch', 'localtime') as date,
+            SELECT id, datetime(timestamp, 'unixepoch', 'localtime') as date,
                    temperature, appetite, mood, note
             FROM symptoms_log ORDER BY timestamp DESC LIMIT 20
         """).fetchall()
         return [dict(r) for r in rows]
+
+
+def delete_symptom(symptom_id):
+    with get_db() as conn:
+        conn.execute("DELETE FROM symptoms_log WHERE id = ?", (symptom_id,))
+        return True
 
 
 def add_allergy(product, reaction, severity=3):
@@ -935,12 +897,6 @@ def add_group_chat(chat_id, title=None):
         return True
 
 
-def is_group_chat(chat_id):
-    with get_db() as conn:
-        row = conn.execute("SELECT 1 FROM group_chats WHERE chat_id = ? AND is_active = 1", (chat_id,)).fetchone()
-        return row is not None
-
-
 def get_group_chats():
     with get_db() as conn:
         rows = conn.execute("SELECT chat_id, title FROM group_chats WHERE is_active = 1").fetchall()
@@ -965,22 +921,6 @@ def is_user_allowed(chat_id):
             return True
         row = conn.execute("SELECT 1 FROM group_chats WHERE chat_id = ? AND is_active = 1", (chat_id,)).fetchone()
         return row is not None
-
-
-def get_due_reminders():
-    now = int(time.time())
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT * FROM medical_reminders 
-            WHERE enabled = 1 AND next_due <= ?
-            ORDER BY next_due ASC
-        """, (now,)).fetchall()
-        reminders = []
-        for r in rows:
-            rem = dict(r)
-            rem['next_due_str'] = datetime.fromtimestamp(rem['next_due']).strftime('%d.%m.%Y')
-            reminders.append(rem)
-        return reminders
 
 
 def get_weekly_chart_data():
@@ -1016,23 +956,14 @@ def get_weekly_chart_data():
 def get_full_report(days=7):
     start_time = int(time.time()) - days * 86400
     with get_db() as conn:
-        feed = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?",
-                            (start_time,)).fetchone()[0]
-        toilet = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
-        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?",
-                             (start_time,)).fetchone()[0]
-        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?",
-                              (start_time,)).fetchone()[0]
-        training_count = \
-        conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
-        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?",
-                                    (start_time,)).fetchone()[0]
-        behavior = \
-        conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (start_time,)).fetchone()[
-            0]
+        feed = conn.execute("SELECT COUNT(*) FROM events WHERE type='feed' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        walk = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='walk' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        toilet = conn.execute("SELECT COUNT(*) FROM events WHERE type='toilet' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        sleep = conn.execute("SELECT COALESCE(SUM(value), 0) FROM events WHERE type='sleep' AND timestamp >= ?", (start_time,)).fetchone()[0]
+        mental = conn.execute("SELECT COALESCE(SUM(duration), 0) FROM mental_activities WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        training_count = conn.execute("SELECT COUNT(*) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        training_avg = conn.execute("SELECT COALESCE(AVG(success_rate), 0) FROM training_logs WHERE timestamp >= ?", (start_time,)).fetchone()[0]
+        behavior = conn.execute("SELECT COUNT(*) FROM events WHERE type='behavior' AND timestamp >= ?", (start_time,)).fetchone()[0]
 
         return {
             'days': days,
@@ -1049,9 +980,7 @@ def get_full_report(days=7):
         }
 
 
-# ========== НОВІ ФУНКЦІЇ ==========
-
-# ----- Пропорції (заміри тіла) -----
+# ========== ПРОПОРЦІЇ ==========
 
 def add_body_measurement(neck_cm=None, chest_cm=None, waist_cm=None, length_cm=None, height_cm=None, note=None):
     with get_db() as conn:
@@ -1073,8 +1002,7 @@ def get_body_measurements(limit=30):
         return [dict(r) for r in rows]
 
 
-def update_body_measurement(measurement_id, neck_cm=None, chest_cm=None, waist_cm=None, length_cm=None, height_cm=None,
-                            note=None, new_timestamp=None):
+def update_body_measurement(measurement_id, neck_cm=None, chest_cm=None, waist_cm=None, length_cm=None, height_cm=None, note=None, new_timestamp=None):
     with get_db() as conn:
         updates = []
         params = []
@@ -1116,10 +1044,9 @@ def delete_body_measurement(measurement_id):
         return True
 
 
-# ----- Ветеринарний паспорт -----
+# ========== ВЕТЕРИНАРНИЙ ПАСПОРТ ==========
 
-def add_vaccination(vaccine_name, vaccine_date, next_due=None, series=None, vet_name=None, clinic_name=None,
-                    notes=None):
+def add_vaccination(vaccine_name, vaccine_date, next_due=None, series=None, vet_name=None, clinic_name=None, notes=None):
     with get_db() as conn:
         vaccine_ts = int(datetime.strptime(vaccine_date, '%Y-%m-%d').timestamp())
         next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
@@ -1142,20 +1069,7 @@ def get_vaccinations():
         return [dict(r) for r in rows]
 
 
-def get_next_vaccination():
-    with get_db() as conn:
-        now = int(time.time())
-        row = conn.execute("""
-            SELECT vaccine_name, datetime(vaccine_next_due, 'unixepoch') as next_due
-            FROM vet_vaccinations 
-            WHERE vaccine_next_due > ? 
-            ORDER BY vaccine_next_due ASC LIMIT 1
-        """, (now,)).fetchone()
-        return dict(row) if row else None
-
-
-def add_parasite_treatment(name, treatment_date, next_due=None, parasite_type=None, medication=None, dosage=None,
-                           notes=None):
+def add_parasite_treatment(name, treatment_date, next_due=None, parasite_type=None, medication=None, dosage=None, notes=None):
     with get_db() as conn:
         treatment_ts = int(datetime.strptime(treatment_date, '%Y-%m-%d').timestamp())
         next_due_ts = int(datetime.strptime(next_due, '%Y-%m-%d').timestamp()) if next_due else None
@@ -1200,170 +1114,7 @@ def get_dental_history():
         return [dict(r) for r in rows]
 
 
-def get_last_dental_procedure():
-    with get_db() as conn:
-        row = conn.execute("""
-            SELECT procedure_type,
-                   datetime(procedure_date, 'unixepoch') as procedure_date
-            FROM dental_care ORDER BY procedure_date DESC LIMIT 1
-        """).fetchone()
-        return dict(row) if row else None
-
-
-# ----- Прогнози та тренди -----
-
-def get_weight_trend(days=30):
-    history = get_weight_history(days)
-    if len(history) < 3:
-        return None
-
-    n = len(history)
-    x = list(range(n))
-    y = [h['weight'] for h in history]
-
-    x_mean = sum(x) / n
-    y_mean = sum(y) / n
-
-    numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
-    denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
-
-    if denominator == 0:
-        return None
-
-    slope = numerator / denominator
-    intercept = y_mean - slope * x_mean
-
-    prediction = slope * (n + 7) + intercept
-
-    return {
-        'current_weight': y[-1],
-        'trend': 'up' if slope > 0.05 else 'down' if slope < -0.05 else 'stable',
-        'change_per_week': round(slope * 7, 2),
-        'prediction_next_week': round(prediction, 1),
-        'confidence': min(95, max(50, int(100 - (1 / n) * 100)))
-    }
-
-
-def get_activity_trend(days=30):
-    start_time = int(time.time()) - days * 86400
-    with get_db() as conn:
-        daily_activity = conn.execute("""
-            SELECT date(timestamp, 'unixepoch') as date, 
-                   COALESCE(SUM(CASE WHEN type='walk' THEN value/60 ELSE 0 END), 0) as walk_minutes,
-                   COALESCE(SUM(CASE WHEN type='sleep' THEN value/3600 ELSE 0 END), 0) as sleep_hours
-            FROM events 
-            WHERE timestamp >= ? 
-            GROUP BY date
-            ORDER BY date
-        """, (start_time,)).fetchall()
-
-        if len(daily_activity) < 5:
-            return None
-
-        walk_avg = sum(r['walk_minutes'] for r in daily_activity) / len(daily_activity)
-        sleep_avg = sum(r['sleep_hours'] for r in daily_activity) / len(daily_activity)
-
-        last_week = daily_activity[-7:] if len(daily_activity) >= 7 else daily_activity
-        prev_weeks = daily_activity[:-7] if len(daily_activity) > 7 else []
-
-        last_week_walk = sum(r['walk_minutes'] for r in last_week) / len(last_week)
-        prev_walk = sum(r['walk_minutes'] for r in prev_weeks) / len(prev_weeks) if prev_weeks else walk_avg
-
-        walk_change = ((last_week_walk - prev_walk) / prev_walk * 100) if prev_walk > 0 else 0
-
-        return {
-            'avg_walk_minutes': round(walk_avg, 1),
-            'avg_sleep_hours': round(sleep_avg, 1),
-            'walk_trend': 'up' if walk_change > 5 else 'down' if walk_change < -5 else 'stable',
-            'walk_change_percent': round(walk_change, 1),
-            'recommendation': 'Збільште активність' if walk_change < -10 else 'Чудова активність!' if walk_change > 5 else 'Норма'
-        }
-
-
-def get_body_measurements_trend(days=90):
-    """Отримати тренд змін пропорцій тіла"""
-    with get_db() as conn:
-        rows = conn.execute("""
-            SELECT id, neck_cm, chest_cm, waist_cm, length_cm, height_cm,
-                   datetime(timestamp, 'unixepoch', 'localtime') as date, timestamp
-            FROM body_measurements ORDER BY timestamp ASC
-        """).fetchall()
-
-        if len(rows) < 2:
-            return None
-
-        measurements = [dict(r) for r in rows]
-
-        first = measurements[0]
-        last = measurements[-1]
-
-        return {
-            'neck_change': round((last.get('neck_cm') or 0) - (first.get('neck_cm') or 0), 1),
-            'chest_change': round((last.get('chest_cm') or 0) - (first.get('chest_cm') or 0), 1),
-            'waist_change': round((last.get('waist_cm') or 0) - (first.get('waist_cm') or 0), 1),
-            'length_change': round((last.get('length_cm') or 0) - (first.get('length_cm') or 0), 1),
-            'height_change': round((last.get('height_cm') or 0) - (first.get('height_cm') or 0), 1),
-            'first_date': first['date'],
-            'last_date': last['date']
-        }
-
-
-# ----- Розумні нагадування -----
-
-def get_smart_reminders():
-    with get_db() as conn:
-        rows = conn.execute("SELECT * FROM smart_reminders WHERE enabled = 1").fetchall()
-        return [dict(r) for r in rows]
-
-
-def check_smart_reminders():
-    reminders = get_smart_reminders()
-    triggered = []
-
-    for r in reminders:
-        condition = r['condition_type']
-        value = r['condition_value']
-
-        if condition == 'vaccination_due':
-            next_vacc = get_next_vaccination()
-            if next_vacc:
-                due_date = datetime.strptime(next_vacc['next_due'], '%Y-%m-%d')
-                days_until = (due_date - datetime.now()).days
-                if days_until <= int(value) if value else 30:
-                    triggered.append(r)
-
-        elif condition == 'parasite_due':
-            treatments = get_parasite_treatments()
-            if treatments:
-                last = treatments[0]
-                if last.get('next_due'):
-                    due_date = datetime.strptime(last['next_due'], '%Y-%m-%d')
-                    days_until = (due_date - datetime.now()).days
-                    if days_until <= int(value) if value else 30:
-                        triggered.append(r)
-
-        elif condition == 'low_activity':
-            trend = get_activity_trend(14)
-            if trend and trend['walk_change_percent'] < -int(value) if value else -20:
-                triggered.append(r)
-
-        elif condition == 'weight_check':
-            last_weight = get_last_weight()
-            target = float(get_setting('target_weight', 8.0))
-            if last_weight and abs(last_weight - target) > 0.5:
-                triggered.append(r)
-
-        elif condition == 'date_based':
-            last_procedure = get_last_dental_procedure()
-            if last_procedure:
-                days_since = (datetime.now() - datetime.strptime(last_procedure['procedure_date'], '%Y-%m-%d')).days
-                if days_since >= 30:
-                    triggered.append(r)
-
-    return triggered
-
-
-# ----- Сімейний доступ -----
+# ========== СІМЕЙНИЙ ДОСТУП ==========
 
 def add_family_member(name, role='member', chat_id=None, notify=True):
     with get_db() as conn:
@@ -1419,16 +1170,3 @@ def notify_family(message):
             pass
 
     return notified
-
-def delete_reminder(reminder_id):
-    """Видалити нагадування"""
-    with get_db() as conn:
-        conn.execute("DELETE FROM medical_reminders WHERE id = ?", (reminder_id,))
-        return True
-
-
-def delete_symptom(symptom_id):
-    """Видалити запис симптомів"""
-    with get_db() as conn:
-        conn.execute("DELETE FROM symptoms_log WHERE id = ?", (symptom_id,))
-        return True
