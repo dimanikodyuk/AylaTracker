@@ -773,24 +773,37 @@ def get_potty_stats():
 
 def add_medical_reminder(title, description, interval_days, reminder_time='09:00'):
     with get_db() as conn:
-        # Перевіряємо які колонки є в таблиці
         cursor = conn.execute("PRAGMA table_info(medical_reminders)")
         columns = [col[1] for col in cursor.fetchall()]
 
-        # Розраховуємо наступну дату з урахуванням reminder_time
         now = datetime.now()
-        reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
 
-        # Створюємо дату наступного нагадування
-        next_due_date = now.replace(hour=reminder_hour, minute=reminder_minute, second=0, microsecond=0)
+        # Розбираємо час нагадування
+        try:
+            reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
+        except:
+            reminder_hour, reminder_minute = 9, 0
 
-        # Якщо час вже минув сьогодні, переносимо на завтра
-        if next_due_date <= now:
-            next_due_date += timedelta(days=1)
+        # Створюємо datetime для наступного нагадування на сьогодні
+        next_due_date = datetime(now.year, now.month, now.day, reminder_hour, reminder_minute, 0)
 
-        # Додаємо інтервал днів
-        next_due_date += timedelta(days=interval_days)
+        # Якщо час вже минув сьогодні, додаємо інтервал днів
+        # АЛЕ: якщо interval_days = 0, то додаємо 1 день тільки якщо час минув
+        if interval_days == 0:
+            # Одноразове нагадування - якщо час минув, ставимо на завтра
+            if next_due_date <= now:
+                next_due_date += timedelta(days=1)
+        else:
+            # Періодичне нагадування: ставимо на сьогодні якщо час ще не минув,
+            # інакше на завтра, а потім додаємо interval_days
+            if next_due_date <= now:
+                next_due_date += timedelta(days=1)
+            next_due_date += timedelta(days=interval_days)
+
         next_due = int(next_due_date.timestamp())
+
+        print(
+            f"Додавання нагадування: {title}, час {reminder_time}, next_due={next_due_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
         if 'reminder_time' in columns and 'last_triggered' in columns:
             conn.execute("""
@@ -807,6 +820,7 @@ def add_medical_reminder(title, description, interval_days, reminder_time='09:00
                 INSERT INTO medical_reminders (title, description, interval_days, next_due, enabled)
                 VALUES (?, ?, ?, ?, 1)
             """, (title, description, interval_days, next_due))
+
         return True
 
 
@@ -824,9 +838,11 @@ def get_medical_reminders():
 
 
 def get_due_medical_reminders():
-    """Отримати нагадування, які мають бути виконані сьогодні або раніше"""
+    """Отримати нагадування, які мають бути виконані (сьогодні або раніше)"""
     now = int(time.time())
+    today_start = int(datetime.now().replace(hour=0, minute=0, second=0).timestamp())
     with get_db() as conn:
+        # Отримуємо нагадування, які мають next_due <= поточний час (вже настав час)
         rows = conn.execute("""
             SELECT * FROM medical_reminders 
             WHERE enabled = 1 AND next_due <= ?
@@ -835,7 +851,8 @@ def get_due_medical_reminders():
         reminders = []
         for r in rows:
             rem = dict(r)
-            rem['next_due_str'] = datetime.fromtimestamp(rem['next_due']).strftime('%d.%m.%Y')
+            next_dt = datetime.fromtimestamp(rem['next_due'])
+            rem['next_due_str'] = next_dt.strftime('%d.%m.%Y %H:%M')
             reminders.append(rem)
         return reminders
 
@@ -846,15 +863,21 @@ def complete_reminder(reminder_id):
                            (reminder_id,)).fetchone()
         if row:
             now = datetime.now()
-            reminder_hour, reminder_minute = map(int, row['reminder_time'].split(':')) if row['reminder_time'] else (9,
-                                                                                                                     0)
+            reminder_time = row['reminder_time'] or '09:00'
+            reminder_hour, reminder_minute = map(int, reminder_time.split(':'))
 
-            # Розраховуємо наступну дату
-            next_due_date = now.replace(hour=reminder_hour, minute=reminder_minute, second=0, microsecond=0)
+            # Розраховуємо наступну дату - через interval_days днів від сьогодні
+            next_due_date = datetime(now.year, now.month, now.day, reminder_hour, reminder_minute, 0)
+
+            # Якщо час сьогодні вже минув, беремо завтра
             if next_due_date <= now:
                 next_due_date += timedelta(days=1)
+
+            # Додаємо інтервал
             next_due_date += timedelta(days=row['interval_days'])
             next_due = int(next_due_date.timestamp())
+
+            logger.info(f"Виконання нагадування {reminder_id}, наступне: {next_due_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
             conn.execute("""
                 UPDATE medical_reminders SET last_triggered = ?, next_due = ? WHERE id = ?

@@ -442,13 +442,14 @@ def send_potty_reminder(chat_id):
 
 
 def check_reminders_loop(bot):
-    """Фонова перевірка нагадувань"""
+    """Фонова перевірка нагадувань (кожні 5 хвилин)"""
     while True:
-        time.sleep(3600)  # Перевіряємо кожну годину
+        time.sleep(300)  # Перевіряємо кожні 5 хвилин (не годину)
         try:
             due_reminders = db.get_due_medical_reminders()
             for r in due_reminders:
-                msg = f"💊 <b>{r['title']}</b>\n\n{r.get('description', '')}\n\n⏰ Час виконання: {r.get('reminder_time', '09:00')}"
+                next_dt = datetime.fromtimestamp(r['next_due'])
+                msg = f"💊 <b>{r['title']}</b>\n\n{r.get('description', '')}\n\n⏰ Час виконання: {next_dt.strftime('%d.%m.%Y о %H:%M')}"
                 admin_chat = db.get_setting('telegram_chat_id')
                 if admin_chat:
                     bot.send_message(admin_chat, msg, parse_mode="HTML")

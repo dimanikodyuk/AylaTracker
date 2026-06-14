@@ -441,11 +441,10 @@ def api_health():
 def api_add_reminder():
     try:
         data = request.get_json()
-        if not data or not data.get('title') or not data.get('interval_days'):
-            return jsonify({'success': False, 'error': 'Missing required fields'})
-        interval = int(data['interval_days'])
-        if interval <= 0:
-            return jsonify({'success': False, 'error': 'interval_days must be positive'})
+        if not data or not data.get('title'):
+            return jsonify({'success': False, 'error': 'Missing title'})
+        interval = int(data['interval_days']) if data.get('interval_days') else 0
+        # interval може бути 0 (одноразове) або більше
         db.add_medical_reminder(data['title'], data.get('description', ''), interval, data.get('reminder_time', '09:00'))
         return jsonify({'success': True})
     except Exception as e:
